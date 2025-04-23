@@ -33,7 +33,7 @@ public class ShipmentDashboardKPI {
                 SELECT get_total_shipments('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s::TEXT, %s::TEXT) AS total_shipments
             """, startDate, endDate, carrierParam, methodParam);
 
-            System.out.println("SQL Query: " + query);
+            //System.out.println("SQL Query: " + query);
             List<Map<String, Object>> data = postgresService.query(query);
             int totalShipments = data.isEmpty() ? 0 : ((Number) data.get(0).get("total_shipments")).intValue();
 
