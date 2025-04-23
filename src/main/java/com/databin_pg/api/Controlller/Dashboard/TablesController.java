@@ -1,4 +1,4 @@
-package com.databin_pg.api.Controlller;
+package com.databin_pg.api.Controlller.Dashboard;
 
 
 import com.databin_pg.api.Service.PostgresService; // Assume this is the service used to query the Postgres DB

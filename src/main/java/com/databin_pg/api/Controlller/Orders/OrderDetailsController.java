@@ -1,4 +1,4 @@
-package com.databin_pg.api.Controlller;
+package com.databin_pg.api.Controlller.Orders;
 
 import com.databin_pg.api.Service.PostgresService;
 import org.springframework.beans.factory.annotation.Autowired;
