@@ -27,7 +27,7 @@ public class ShipmentStatusController {
             """, startDate, endDate);
 
             // Log the query for debugging
-            System.out.println("Executing query: " + query);
+           // System.out.println("Executing query: " + query);
 
             // Execute the query using the service layer
             List<Map<String, Object>> result = postgresService.query(query);

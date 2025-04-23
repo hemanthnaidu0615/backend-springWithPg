@@ -62,11 +62,11 @@ public class SalesAndRevenueController {
                 SELECT * FROM get_revenue_trends('%s'::TIMESTAMP, '%s'::TIMESTAMP)
             """, startDate, endDate);
 
-            System.out.println("Executing query: " + query); // Log the query being executed
+            //System.out.println("Executing query: " + query); // Log the query being executed
             List<Map<String, Object>> data = postgresService.query(query);
 
             // Log the data returned by the query
-            System.out.println("Data returned: " + data);
+           // System.out.println("Data returned: " + data);
 
             return ResponseEntity.ok(Map.of("revenue_trends", data));
         } catch (Exception e) {
