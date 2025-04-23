@@ -1,4 +1,4 @@
-package com.databin_pg.api.Controlller;
+package com.databin_pg.api.Controlller.Dashboard;
 
 import com.databin_pg.api.Service.PostgresService;
 import org.springframework.beans.factory.annotation.Autowired;

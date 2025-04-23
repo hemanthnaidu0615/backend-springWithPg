@@ -1,4 +1,4 @@
-package com.databin_pg.api.Controlller;
+package com.databin_pg.api.Controlller.Dashboard;
 
 import java.util.ArrayList;
 import java.util.List;
