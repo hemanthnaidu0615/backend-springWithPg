@@ -21,14 +21,15 @@ public class TablesController {
     @GetMapping("/recent-orders")
     public ResponseEntity<?> getRecentOrders(
             @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate) {
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
         try {
-            // Call the stored procedure to get recent orders
+            // Use enterprise key in the query
             String query = String.format("""
-                SELECT * FROM get_recent_orders('%s'::TIMESTAMP, '%s'::TIMESTAMP);
-            """, startDate, endDate);
+                SELECT * FROM get_recent_orders('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT);
+            """, startDate, endDate, enterpriseKey);
 
-            List<Map<String, Object>> data = postgresService.query(query);  // Assuming query is implemented in your PostgresService class
+            List<Map<String, Object>> data = postgresService.query(query);
 
             if (data.isEmpty()) {
                 return ResponseEntity.ok(Collections.singletonMap("message", "No recent orders found."));
@@ -41,5 +42,6 @@ public class TablesController {
                     .body(Collections.singletonMap("error", "Failed to fetch recent orders"));
         }
     }
+
 }
 

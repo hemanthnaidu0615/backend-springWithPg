@@ -17,89 +17,133 @@ public class SalesAndRevenueController {
     @Autowired
     private PostgresService postgresService;
 
-    // 📌 API: Get Total Sales Data (with date filter)
- // 📌 API: Get Total Sales Data (with date filter)
+    // 📌 API: Get Total Sales Data (with date filter and enterprise_key)
     @GetMapping("/sales-data")
     public ResponseEntity<?> getSalesData(
             @RequestParam("startDate") String startDate,
-            @RequestParam("endDate") String endDate) {
+            @RequestParam("endDate") String endDate,
+            @RequestParam("enterpriseKey") String enterpriseKey) {  
         try {
             String query = String.format("""
-                SELECT * FROM get_total_sales('%s'::TIMESTAMP, '%s'::TIMESTAMP)
-            """, startDate, endDate);
+                SELECT * FROM get_total_sales('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
+            """, startDate, endDate, enterpriseKey);
 
-            //System.out.println("Executing query: " + query); // Log the query being executed
+            // Log the generated query
+           // System.out.println("Executing Query: " + query);  // Debug log
+
             List<Map<String, Object>> data = postgresService.query(query);
 
-            // Log the data returned by the query
-           // System.out.println("Data returned: " + data);
+            // Log the returned data
+           // System.out.println("Returned Data: " + data);  // Debug log
 
-            double totalSales = 0.0;
-            if (!data.isEmpty()) {
-                // Extract the BigDecimal value and convert it to double
-                BigDecimal sales = (BigDecimal) data.get(0).get("get_total_sales");
-                if (sales != null) {
-                    totalSales = sales.doubleValue(); // Convert BigDecimal to double
+            List<Map<String, Object>> salesData = new ArrayList<>();
+
+            for (Map<String, Object> row : data) {
+                String month = Objects.toString(row.get("month"), "N/A");
+
+                double totalSales = 0.0;
+                Object salesObj = row.get("total_sales");
+                if (salesObj instanceof Number) {
+                    totalSales = ((Number) salesObj).doubleValue();
                 }
+
+                salesData.add(Map.of(
+                    "month", month,
+                    "total_sales", totalSales
+                ));
             }
 
-            return ResponseEntity.ok(Map.of("total_sales", totalSales));
-        } catch (Exception e) {  // Catching general exceptions
-            e.printStackTrace(); // Log the stack trace to get more insight into the error
+
+            return ResponseEntity.ok(Map.of("sales_data", salesData));
+        } catch (Exception e) {
+            e.printStackTrace();  
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch total sales data"));
         }
     }
 
 
-    // 📌 API: Get Revenue Trends Over Time (with date filter)
+    // 📌 API: Get Revenue Trends Over Time (with date filter and enterprise_key)
     @GetMapping("/revenue-trends")
     public ResponseEntity<?> getRevenueTrends(
             @RequestParam("startDate") String startDate,
-            @RequestParam("endDate") String endDate) {
+            @RequestParam("endDate") String endDate,
+            @RequestParam("enterpriseKey") String enterpriseKey) {  // Added enterpriseKey
         try {
             String query = String.format("""
-                SELECT * FROM get_revenue_trends('%s'::TIMESTAMP, '%s'::TIMESTAMP)
-            """, startDate, endDate);
+                SELECT * FROM get_revenue_trends('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
+            """, startDate, endDate, enterpriseKey);
 
-            //System.out.println("Executing query: " + query); // Log the query being executed
             List<Map<String, Object>> data = postgresService.query(query);
+            List<Map<String, Object>> trends = new ArrayList<>();
 
-            // Log the data returned by the query
-           // System.out.println("Data returned: " + data);
+            for (Map<String, Object> row : data) {
+                String month = Objects.toString(row.get("month"), "N/A");
 
-            return ResponseEntity.ok(Map.of("revenue_trends", data));
+                double monthlyRevenue = 0.0;
+                Object revenueObj = row.get("monthly_revenue");
+                if (revenueObj instanceof Number) {
+                    monthlyRevenue = ((Number) revenueObj).doubleValue();
+                }
+
+                trends.add(Map.of(
+                    "month", month,
+                    "monthly_revenue", monthlyRevenue
+                ));
+            }
+
+            return ResponseEntity.ok(Map.of("revenue_trends", trends));
+
         } catch (Exception e) {
-            e.printStackTrace(); // Log the stack trace for debugging
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch revenue trends"));
         }
     }
 
+    // 📌 API: Get Forecasted Sales (with date filter and enterprise_key)
     @GetMapping("/forecasted-sales")
     public ResponseEntity<?> getForecastedSales(
             @RequestParam("startDate") String startDate,
-            @RequestParam("endDate") String endDate) {
+            @RequestParam("endDate") String endDate,
+            @RequestParam("enterpriseKey") String enterpriseKey) {  // Added enterpriseKey
         try {
             String query = String.format("""
-                SELECT * FROM get_forecasted_sales('%s'::TIMESTAMP, '%s'::TIMESTAMP)
-            """, startDate, endDate);
+                SELECT * FROM get_forecasted_sales('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
+            """, startDate, endDate, enterpriseKey);
 
             List<Map<String, Object>> data = postgresService.query(query);
-            double forecastedSales = 0.0;
+            List<Map<String, Object>> forecasts = new ArrayList<>();
 
-            if (!data.isEmpty()) {
-                Object rawValue = data.get(0).get("get_forecasted_sales");
-                if (rawValue instanceof BigDecimal) {
-                    forecastedSales = ((BigDecimal) rawValue).doubleValue();
+            for (Map<String, Object> row : data) {
+                String month = Objects.toString(row.get("month"), "N/A");
+
+                double forecasted = 0.0;
+                Object forecastObj = row.get("forecasted_sales");
+                if (forecastObj instanceof Number) {
+                    forecasted = ((Number) forecastObj).doubleValue();
                 }
+
+                forecasts.add(Map.of(
+                    "month", month,
+                    "forecasted_sales", forecasted
+                ));
             }
 
-            return ResponseEntity.ok(Map.of("forecasted_sales", forecastedSales));
+            return ResponseEntity.ok(Map.of("forecasted_sales", forecasts));
+
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch forecasted sales"));
         }
     }
 
+    // Helper method to parse BigDecimal to double
+    private double parseDouble(Object value) {
+        if (value instanceof BigDecimal) {
+            return ((BigDecimal) value).doubleValue();
+        }
+        return 0.0;
+    }
 }

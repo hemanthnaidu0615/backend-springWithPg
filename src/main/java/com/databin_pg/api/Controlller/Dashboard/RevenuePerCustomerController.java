@@ -20,16 +20,19 @@ public class RevenuePerCustomerController {
     @GetMapping("/top-customers")
     public ResponseEntity<?> getTopCustomersByRevenue(
             @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate) {
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "enterpriseKey") String enterpriseKey) {  // Added enterpriseKey parameter
         try {
+            // Update the query to include enterpriseKey
             String query = String.format("""
-                SELECT * FROM get_top_customers_by_revenue('%s'::TIMESTAMP, '%s'::TIMESTAMP)
-            """, startDate, endDate);
+                SELECT * FROM get_top_customers_by_revenue('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
+            """, startDate, endDate, enterpriseKey);  // Pass enterpriseKey to the stored procedure
 
             List<Map<String, Object>> data = postgresService.query(query);
 
             List<Map<String, Object>> topCustomers = new ArrayList<>();
 
+            // Transform result data into the expected format
             for (Map<String, Object> row : data) {
                 String customerId = Objects.toString(row.get("customer_id"), "N/A");
                 String customerName = Objects.toString(row.get("customer_name"), "N/A");
@@ -49,6 +52,7 @@ public class RevenuePerCustomerController {
                     .body(Map.of("error", "Failed to fetch top customers by revenue"));
         }
     }
+
     // 🔹 Helper Method: Convert Object to Double
     private double parseDouble(Object obj) {
         if (obj == null) return 0.0;
@@ -60,4 +64,3 @@ public class RevenuePerCustomerController {
         }
     }
 }
-

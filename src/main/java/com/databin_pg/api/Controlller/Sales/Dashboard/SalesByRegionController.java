@@ -78,15 +78,17 @@ public class SalesByRegionController {
     @GetMapping
     public ResponseEntity<?> getSalesByRegion(
             @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "enterpriseKey") String enterpriseKey  // ✅ added
     ) {
         try {
             String query = String.format("""
                 SELECT * FROM get_sales_by_region(
                     '%s'::TIMESTAMP,
-                    '%s'::TIMESTAMP
+                    '%s'::TIMESTAMP,
+                    '%s'::TEXT
                 )
-            """, startDate, endDate);
+            """, startDate, endDate, enterpriseKey);  // ✅ added
 
             List<Map<String, Object>> data = postgresService.query(query);
 
@@ -100,18 +102,21 @@ public class SalesByRegionController {
         }
     }
 
+
     @GetMapping("/top5")
     public ResponseEntity<?> getTop5RevenueStates(
             @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "enterpriseKey") String enterpriseKey
     ) {
         try {
             String query = String.format("""
                 SELECT * FROM get_top5_states_by_revenue(
                     '%s'::TIMESTAMP,
-                    '%s'::TIMESTAMP
+                    '%s'::TIMESTAMP,
+                    '%s'
                 )
-            """, startDate, endDate);
+            """, startDate, endDate, enterpriseKey);
 
             List<Map<String, Object>> data = postgresService.query(query);
 
@@ -127,15 +132,17 @@ public class SalesByRegionController {
     @GetMapping("/countrywide")
     public ResponseEntity<?> getCountrywideSales(
             @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "enterpriseKey") String enterpriseKey
     ) {
         try {
             String query = String.format("""
                 SELECT * FROM get_countrywide_sales(
                     '%s'::TIMESTAMP,
-                    '%s'::TIMESTAMP
+                    '%s'::TIMESTAMP,
+                    '%s'
                 )
-            """, startDate, endDate);
+            """, startDate, endDate, enterpriseKey);
 
             List<Map<String, Object>> data = postgresService.query(query);
             mapStateNames(data);
@@ -148,6 +155,7 @@ public class SalesByRegionController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
 
     // 🧠 Helper method to replace state abbreviations with full names
     private void mapStateNames(List<Map<String, Object>> data) {

@@ -27,11 +27,17 @@ public class ShipmentPerformanceController {
     @GetMapping
     public ResponseEntity<?> getShipmentPerformance(
             @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate) {
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "enterpriseKey") String enterpriseKey
+    ) {
         try {
             String query = String.format("""
-                SELECT * FROM get_shipment_performance('%s'::TIMESTAMP, '%s'::TIMESTAMP)
-            """, startDate, endDate);
+                SELECT * FROM get_shipment_performance(
+                    '%s'::TIMESTAMP, 
+                    '%s'::TIMESTAMP, 
+                    '%s'
+                )
+            """, startDate, endDate, enterpriseKey);
 
             List<Map<String, Object>> result = postgresService.query(query);
             List<Map<String, Object>> shipments = new ArrayList<>();

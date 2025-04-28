@@ -19,16 +19,17 @@ import org.springframework.http.HttpStatus;
 public class SalesController {
 
     @Autowired
-    private PostgresService postgresService;;
+    private PostgresService postgresService;
 
     @GetMapping("/metrics")
     public ResponseEntity<?> getSalesMetrics(
             @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate) {
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
         try {
             String query = String.format("""
-                SELECT * FROM get_sales_metrics('%s'::TIMESTAMP, '%s'::TIMESTAMP)
-            """, startDate, endDate);
+                SELECT * FROM get_sales_metrics('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
+            """, startDate, endDate, enterpriseKey);
 
             List<Map<String, Object>> result = postgresService.query(query);
 
@@ -47,11 +48,11 @@ public class SalesController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Collections.singletonMap("error", "Failed to fetch sales metrics"));
         }
     }
-
 
     // ✅ Helper: Convert Object to Double Safely
     private double parseDouble(Object obj) {

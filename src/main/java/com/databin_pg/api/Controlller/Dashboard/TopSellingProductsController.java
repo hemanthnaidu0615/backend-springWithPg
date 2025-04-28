@@ -20,12 +20,14 @@ public class TopSellingProductsController {
     @GetMapping("/top-products")
     public ResponseEntity<?> getTopSellingProducts(
             @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate) {
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "enterpriseKey") String enterpriseKey) {  // Accept enterpriseKey as a parameter
 
         try {
+            // Include enterpriseKey in the query
             String query = String.format(
-                "SELECT * FROM get_top_selling_products(TIMESTAMP '%s', TIMESTAMP '%s')",
-                startDate, endDate
+                "SELECT * FROM get_top_selling_products(TIMESTAMP '%s', TIMESTAMP '%s', '%s')", 
+                startDate, endDate, enterpriseKey
             );
 
             List<Map<String, Object>> data = postgresService.query(query);
