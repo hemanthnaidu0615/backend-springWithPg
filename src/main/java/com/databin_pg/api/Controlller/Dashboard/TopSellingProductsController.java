@@ -37,11 +37,15 @@ public class TopSellingProductsController {
                 String name = Objects.toString(row.get("product_name"), "N/A");
                 int quantity = parseInteger(row.get("total_quantity"));
                 double percent = parseDouble(row.get("percentage"));
+                String description = Objects.toString(row.get("description"), "N/A");
+                double price = parseDouble(row.get("price"));
 
                 topProducts.add(Map.of(
                     "product_name", name,
                     "quantity_sold", quantity,
-                    "percentage", String.format("%.2f%%", percent)
+                    "percentage", String.format("%.2f%%", percent),
+                    "description", description,
+                    "price", price
                 ));
             }
 
