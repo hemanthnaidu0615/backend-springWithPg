@@ -27,7 +27,7 @@ public class OrdersPage {
             @RequestParam(name = "carrier", required = false) String carrier,
             @RequestParam(name = "searchCustomer", required = false) String searchCustomer,
             @RequestParam(name = "searchOrderId", required = false) String searchOrderId,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey
     ) {
         try {
             String query = String.format("""

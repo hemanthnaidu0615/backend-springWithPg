@@ -23,7 +23,7 @@ public class DashboardKPIController {
     public ResponseEntity<?> getTotalOrders(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
         	String query = String.format("""
         		    SELECT get_total_orders('%s', '%s', '%s') AS total_orders
@@ -46,7 +46,7 @@ public class DashboardKPIController {
     public ResponseEntity<?> getShipmentStatusPercentage(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
             String query = String.format("""
                 SELECT * FROM get_shipment_status_data('%s', '%s', '%s')
@@ -82,7 +82,7 @@ public class DashboardKPIController {
     public ResponseEntity<?> getFulfillmentRate(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
             String query = String.format("""
                 SELECT get_fulfillment_rate('%s', '%s', '%s') AS fulfillment_rate
@@ -109,7 +109,7 @@ public class DashboardKPIController {
     public ResponseEntity<?> getOutOfStockCount(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
             String query = String.format("""
                 SELECT get_out_of_stock_count('%s', '%s', '%s') AS out_of_stock_count

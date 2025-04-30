@@ -20,7 +20,7 @@ public class ShipmentStatusController {
     public ResponseEntity<?> getOrderStatusCount(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
             // Formulate the SQL query to call the stored procedure with enterpriseKey
             String query = String.format(""" 

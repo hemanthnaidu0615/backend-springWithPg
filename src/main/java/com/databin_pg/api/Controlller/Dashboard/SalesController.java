@@ -79,7 +79,7 @@ public class SalesController {
     public ResponseEntity<?> getSalesMetrics(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
             String query = String.format("""
                 SELECT * FROM get_sales_metrics('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
@@ -112,7 +112,7 @@ public class SalesController {
     public ResponseEntity<?> getMapMetrics(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
             String query = String.format("""
                 SELECT * FROM get_statewise_customers_revenue('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)

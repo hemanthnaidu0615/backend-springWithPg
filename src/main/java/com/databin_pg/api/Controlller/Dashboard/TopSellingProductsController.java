@@ -21,7 +21,7 @@ public class TopSellingProductsController {
     public ResponseEntity<?> getTopSellingProducts(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey) {  // Accept enterpriseKey as a parameter
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {  // Accept enterpriseKey as a parameter
 
         try {
             // Include enterpriseKey in the query

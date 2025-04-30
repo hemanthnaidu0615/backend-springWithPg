@@ -21,7 +21,7 @@ public class OrderTrendsByProdCatController {
     public ResponseEntity<?> getOrderTrendsByCategory(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
             // Call the stored procedure for monthly order trends by category
             String query = String.format("""

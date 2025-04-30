@@ -21,7 +21,7 @@ public class RevenuePerCustomerController {
     public ResponseEntity<?> getTopCustomersByRevenue(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey) {  // Added enterpriseKey parameter
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {  // Added enterpriseKey parameter
         try {
             // Update the query to include enterpriseKey
             String query = String.format("""
