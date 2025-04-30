@@ -20,6 +20,60 @@ public class SalesController {
 
     @Autowired
     private PostgresService postgresService;
+    
+    private static final Map<String, String> STATE_ABBREVIATIONS = Map.ofEntries(
+    	    Map.entry("AL", "Alabama"),
+    	    Map.entry("AK", "Alaska"),
+    	    Map.entry("AZ", "Arizona"),
+    	    Map.entry("AR", "Arkansas"),
+    	    Map.entry("CA", "California"),
+    	    Map.entry("CO", "Colorado"),
+    	    Map.entry("CT", "Connecticut"),
+    	    Map.entry("DE", "Delaware"),
+    	    Map.entry("FL", "Florida"),
+    	    Map.entry("GA", "Georgia"),
+    	    Map.entry("HI", "Hawaii"),
+    	    Map.entry("ID", "Idaho"),
+    	    Map.entry("IL", "Illinois"),
+    	    Map.entry("IN", "Indiana"),
+    	    Map.entry("IA", "Iowa"),
+    	    Map.entry("KS", "Kansas"),
+    	    Map.entry("KY", "Kentucky"),
+    	    Map.entry("LA", "Louisiana"),
+    	    Map.entry("ME", "Maine"),
+    	    Map.entry("MD", "Maryland"),
+    	    Map.entry("MA", "Massachusetts"),
+    	    Map.entry("MI", "Michigan"),
+    	    Map.entry("MN", "Minnesota"),
+    	    Map.entry("MS", "Mississippi"),
+    	    Map.entry("MO", "Missouri"),
+    	    Map.entry("MT", "Montana"),
+    	    Map.entry("NE", "Nebraska"),
+    	    Map.entry("NV", "Nevada"),
+    	    Map.entry("NH", "New Hampshire"),
+    	    Map.entry("NJ", "New Jersey"),
+    	    Map.entry("NM", "New Mexico"),
+    	    Map.entry("NY", "New York"),
+    	    Map.entry("NC", "North Carolina"),
+    	    Map.entry("ND", "North Dakota"),
+    	    Map.entry("OH", "Ohio"),
+    	    Map.entry("OK", "Oklahoma"),
+    	    Map.entry("OR", "Oregon"),
+    	    Map.entry("PA", "Pennsylvania"),
+    	    Map.entry("RI", "Rhode Island"),
+    	    Map.entry("SC", "South Carolina"),
+    	    Map.entry("SD", "South Dakota"),
+    	    Map.entry("TN", "Tennessee"),
+    	    Map.entry("TX", "Texas"),
+    	    Map.entry("UT", "Utah"),
+    	    Map.entry("VT", "Vermont"),
+    	    Map.entry("VA", "Virginia"),
+    	    Map.entry("WA", "Washington"),
+    	    Map.entry("WV", "West Virginia"),
+    	    Map.entry("WI", "Wisconsin"),
+    	    Map.entry("WY", "Wyoming"),
+    	    Map.entry("DC", "District of Columbia")
+    	);
 
     @GetMapping("/metrics")
     public ResponseEntity<?> getSalesMetrics(
@@ -53,6 +107,33 @@ public class SalesController {
                     .body(Collections.singletonMap("error", "Failed to fetch sales metrics"));
         }
     }
+    
+    @GetMapping("/map-metrics")
+    public ResponseEntity<?> getMapMetrics(
+            @RequestParam(name = "startDate") String startDate,
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
+        try {
+            String query = String.format("""
+                SELECT * FROM get_statewise_customers_revenue('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
+            """, startDate, endDate, enterpriseKey);
+
+            List<Map<String, Object>> data = postgresService.query(query);
+            mapStateNames(data);
+
+            if (data.isEmpty()) {
+                return ResponseEntity.ok(Collections.singletonMap("message", "No data found for given range"));
+            }
+
+            return ResponseEntity.ok(data);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Collections.singletonMap("error", "Failed to fetch map metrics"));
+        }
+    }
+
 
     // ✅ Helper: Convert Object to Double Safely
     private double parseDouble(Object obj) {
@@ -63,7 +144,17 @@ public class SalesController {
             return 0.0;
         }
     }
-
+    
+    private void mapStateNames(List<Map<String, Object>> data) {
+        for (Map<String, Object> row : data) {
+            Object abbrevObj = row.get("state");
+            if (abbrevObj != null) {
+                String abbreviation = abbrevObj.toString();
+                String fullName = STATE_ABBREVIATIONS.getOrDefault(abbreviation, abbreviation);
+                row.put("state", fullName);
+            }
+        }
+    }
     // ✅ Helper: Convert Object to Integer Safely
     private int parseInteger(Object obj) {
         if (obj instanceof Number) return ((Number) obj).intValue();
