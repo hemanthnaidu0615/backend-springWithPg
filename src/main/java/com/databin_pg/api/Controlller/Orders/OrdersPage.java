@@ -19,15 +19,15 @@ public class OrdersPage {
     // 📌 API: Get Orders with all filters including enterpriseKey
     @GetMapping("/filtered")
     public ResponseEntity<?> getFilteredOrders(
-            @RequestParam(name = "startDate", required = false) String startDate,
-            @RequestParam(name = "endDate", required = false) String endDate,
+            @RequestParam(name = "startDate") String startDate,
+            @RequestParam(name = "endDate") String endDate,
             @RequestParam(name = "status", required = false) String status,
             @RequestParam(name = "orderType", required = false) String orderType,
             @RequestParam(name = "paymentMethod", required = false) String paymentMethod,
             @RequestParam(name = "carrier", required = false) String carrier,
             @RequestParam(name = "searchCustomer", required = false) String searchCustomer,
             @RequestParam(name = "searchOrderId", required = false) String searchOrderId,
-            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey
+            @RequestParam(name = "enterpriseKey") String enterpriseKey
     ) {
         try {
             String query = String.format("""
