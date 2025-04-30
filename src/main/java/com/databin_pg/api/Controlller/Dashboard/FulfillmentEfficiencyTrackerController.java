@@ -28,7 +28,7 @@ public class FulfillmentEfficiencyTrackerController {
     public ResponseEntity<?> getFulfillmentSummary(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey) { // Added enterpriseKey parameter
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) { // Added enterpriseKey parameter
 
         try {
             // Ensure only YYYY-MM-DD is passed (strip time if present)

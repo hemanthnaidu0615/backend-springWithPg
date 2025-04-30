@@ -20,9 +20,9 @@ public class SalesAndRevenueController {
     // 📌 API: Get Total Sales Data (with date filter and enterprise_key)
     @GetMapping("/sales-data")
     public ResponseEntity<?> getSalesData(
-            @RequestParam("startDate") String startDate,
-            @RequestParam("endDate") String endDate,
-            @RequestParam("enterpriseKey") String enterpriseKey) {  
+            @RequestParam(name= "startDate") String startDate,
+            @RequestParam(name= "endDate") String endDate,
+            @RequestParam(name= "enterpriseKey", required=false) String enterpriseKey) {  
         try {
             String query = String.format("""
                 SELECT * FROM get_total_sales('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
@@ -66,9 +66,9 @@ public class SalesAndRevenueController {
     // 📌 API: Get Revenue Trends Over Time (with date filter and enterprise_key)
     @GetMapping("/revenue-trends")
     public ResponseEntity<?> getRevenueTrends(
-            @RequestParam("startDate") String startDate,
-            @RequestParam("endDate") String endDate,
-            @RequestParam("enterpriseKey") String enterpriseKey) {  // Added enterpriseKey
+            @RequestParam(name= "startDate") String startDate,
+            @RequestParam(name= "endDate") String endDate,
+            @RequestParam(name= "enterpriseKey", required=false) String enterpriseKey) {  // Added enterpriseKey
         try {
             String query = String.format("""
                 SELECT * FROM get_revenue_trends('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
@@ -104,9 +104,9 @@ public class SalesAndRevenueController {
     // 📌 API: Get Forecasted Sales (with date filter and enterprise_key)
     @GetMapping("/forecasted-sales")
     public ResponseEntity<?> getForecastedSales(
-            @RequestParam("startDate") String startDate,
-            @RequestParam("endDate") String endDate,
-            @RequestParam("enterpriseKey") String enterpriseKey) {  // Added enterpriseKey
+            @RequestParam(name= "startDate") String startDate,
+            @RequestParam(name= "endDate") String endDate,
+            @RequestParam(name= "enterpriseKey", required=false) String enterpriseKey) {  // Added enterpriseKey
         try {
             String query = String.format("""
                 SELECT * FROM get_forecasted_sales('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)

@@ -79,7 +79,7 @@ public class SalesByRegionController {
     public ResponseEntity<?> getSalesByRegion(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey  // ✅ added
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey  // ✅ added
     ) {
         try {
             String query = String.format("""
@@ -107,7 +107,7 @@ public class SalesByRegionController {
     public ResponseEntity<?> getTop5RevenueStates(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey
     ) {
         try {
             String query = String.format("""
@@ -133,7 +133,7 @@ public class SalesByRegionController {
     public ResponseEntity<?> getCountrywideSales(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey
     ) {
         try {
             String query = String.format("""

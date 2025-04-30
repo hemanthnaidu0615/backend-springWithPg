@@ -28,7 +28,7 @@ public class ShipmentPerformanceController {
     public ResponseEntity<?> getShipmentPerformance(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey
     ) {
         try {
             String query = String.format("""

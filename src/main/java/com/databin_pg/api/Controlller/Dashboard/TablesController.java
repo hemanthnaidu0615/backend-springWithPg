@@ -22,7 +22,7 @@ public class TablesController {
     public ResponseEntity<?> getRecentOrders(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
+            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
             // Use enterprise key in the query
             String query = String.format("""
