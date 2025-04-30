@@ -16,7 +16,7 @@ public class OrdersPage {
     @Autowired
     private PostgresService postgresService;
 
-    // 📌 API: Get Orders with all filters
+    // 📌 API: Get Orders with all filters including enterpriseKey
     @GetMapping("/filtered")
     public ResponseEntity<?> getFilteredOrders(
             @RequestParam(name = "startDate", required = false) String startDate,
@@ -26,13 +26,13 @@ public class OrdersPage {
             @RequestParam(name = "paymentMethod", required = false) String paymentMethod,
             @RequestParam(name = "carrier", required = false) String carrier,
             @RequestParam(name = "searchCustomer", required = false) String searchCustomer,
-            @RequestParam(name = "searchOrderId", required = false) String searchOrderId
+            @RequestParam(name = "searchOrderId", required = false) String searchOrderId,
+            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey
     ) {
         try {
-            // Prepare the SQL to call the stored procedure
             String query = String.format("""
                 SELECT * FROM get_filtered_orders(
-                    %s, %s, %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s
                 )
             """,
                 startDate != null ? "TIMESTAMP '" + startDate + "'" : "NULL",
@@ -42,7 +42,8 @@ public class OrdersPage {
                 paymentMethod != null ? "'" + paymentMethod + "'" : "NULL",
                 carrier != null ? "'" + carrier + "'" : "NULL",
                 searchCustomer != null ? "'" + searchCustomer + "'" : "NULL",
-                searchOrderId != null ? "'" + searchOrderId + "'" : "NULL"
+                searchOrderId != null ? "'" + searchOrderId + "'" : "NULL",
+                enterpriseKey != null ? "'" + enterpriseKey + "'" : "NULL"
             );
 
             List<Map<String, Object>> results = postgresService.query(query);
