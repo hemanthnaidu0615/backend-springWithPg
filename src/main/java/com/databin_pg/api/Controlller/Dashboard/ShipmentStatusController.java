@@ -19,15 +19,13 @@ public class ShipmentStatusController {
     @GetMapping("/count")
     public ResponseEntity<?> getOrderStatusCount(
             @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate) {
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
         try {
-            // Formulate the SQL query to call the stored procedure
-            String query = String.format("""
-                SELECT * FROM get_shipment_status_counts('%s'::TIMESTAMP, '%s'::TIMESTAMP)
-            """, startDate, endDate);
-
-            // Log the query for debugging
-           // System.out.println("Executing query: " + query);
+            // Formulate the SQL query to call the stored procedure with enterpriseKey
+            String query = String.format(""" 
+                SELECT * FROM get_shipment_status_counts('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
+            """, startDate, endDate, enterpriseKey);
 
             // Execute the query using the service layer
             List<Map<String, Object>> result = postgresService.query(query);

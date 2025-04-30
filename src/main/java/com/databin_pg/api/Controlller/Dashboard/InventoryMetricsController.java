@@ -20,11 +20,12 @@ public class InventoryMetricsController {
     public ResponseEntity<?> getInventoryTurnoverAndLowStock(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "threshold", defaultValue = "10") int threshold) {
+            @RequestParam(name = "threshold", defaultValue = "10") int threshold) {  // No enterpriseKey needed
 
         try {
-            // Call the PostgreSQL stored procedure for turnover rate
-            String turnoverQuery = String.format("SELECT * FROM get_inventory_turnover_and_alerts('%s'::date, '%s'::date)", startDate, endDate);
+            String turnoverQuery = String.format("""
+                SELECT * FROM get_inventory_turnover_and_alerts('%s'::date, '%s'::date)
+            """, startDate, endDate);
             List<Map<String, Object>> turnoverData = postgresService.query(turnoverQuery);
 
             List<Map<String, Object>> turnoverList = new ArrayList<>(turnoverData.size());
@@ -35,8 +36,9 @@ public class InventoryMetricsController {
                 ));
             }
 
-            // Call the PostgreSQL stored procedure for low stock alerts
-            String lowStockQuery = String.format("SELECT * FROM get_low_stock_alerts(%d)", threshold);
+            String lowStockQuery = String.format("""
+                SELECT * FROM get_low_stock_alerts(%d)
+            """, threshold);
             List<Map<String, Object>> lowStockData = postgresService.query(lowStockQuery);
 
             List<Map<String, Object>> lowStockList = new ArrayList<>(lowStockData.size());
@@ -54,7 +56,6 @@ public class InventoryMetricsController {
             ));
 
         } catch (Exception e) {
-            // Log the error message for debugging
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch inventory metrics"));

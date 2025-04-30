@@ -27,17 +27,18 @@ public class FulfillmentEfficiencyTrackerController {
     @GetMapping("/summary")
     public ResponseEntity<?> getFulfillmentSummary(
             @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate) {
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "enterpriseKey") String enterpriseKey) { // Added enterpriseKey parameter
 
         try {
             // Ensure only YYYY-MM-DD is passed (strip time if present)
             String formattedStartDate = startDate.length() > 10 ? startDate.substring(0, 10) : startDate;
             String formattedEndDate = endDate.length() > 10 ? endDate.substring(0, 10) : endDate;
 
-            // Call the PostgreSQL function with explicit type casting
+            // Call the PostgreSQL function with explicit type casting, passing the enterpriseKey
             String query = String.format("""
-                SELECT * FROM get_fulfillment_summary('%s'::date, '%s'::date)
-            """, formattedStartDate, formattedEndDate);
+                SELECT * FROM get_fulfillment_summary('%s'::date, '%s'::date, '%s')
+            """, formattedStartDate, formattedEndDate, enterpriseKey);
 
             List<Map<String, Object>> rows = postgresService.query(query);
             Map<String, Map<String, Integer>> summary = new LinkedHashMap<>();
@@ -63,4 +64,3 @@ public class FulfillmentEfficiencyTrackerController {
     }
 
 }
-

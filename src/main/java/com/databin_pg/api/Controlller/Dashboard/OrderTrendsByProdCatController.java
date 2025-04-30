@@ -1,6 +1,5 @@
 package com.databin_pg.api.Controlller.Dashboard;
 
-
 import com.databin_pg.api.Service.PostgresService;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,12 +20,13 @@ public class OrderTrendsByProdCatController {
     @GetMapping
     public ResponseEntity<?> getOrderTrendsByCategory(
             @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate) {
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "enterpriseKey") String enterpriseKey) {
         try {
             // Call the stored procedure for monthly order trends by category
             String query = String.format("""
-                SELECT * FROM get_order_trends_by_category('%s'::TIMESTAMP, '%s'::TIMESTAMP)
-            """, startDate, endDate);
+                SELECT * FROM get_order_trends_by_category('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
+            """, startDate, endDate, enterpriseKey);
 
             // Execute the query using the PostgresService
             List<Map<String, Object>> data = postgresService.query(query);
@@ -45,8 +45,9 @@ public class OrderTrendsByProdCatController {
 
             return ResponseEntity.ok(Map.of("order_trends", result));
         } catch (Exception e) {
+            e.printStackTrace(); // Log the full stack trace
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to fetch order trends data"));
+                    .body(Map.of("error", "Failed to fetch order trends data", "details", e.getMessage()));
         }
     }
 
