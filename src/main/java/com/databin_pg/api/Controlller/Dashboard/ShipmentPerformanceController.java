@@ -31,13 +31,15 @@ public class ShipmentPerformanceController {
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey
     ) {
         try {
-            String query = String.format("""
-                SELECT * FROM get_shipment_performance(
-                    '%s'::TIMESTAMP, 
-                    '%s'::TIMESTAMP, 
-                    '%s'
-                )
-            """, startDate, endDate, enterpriseKey);
+        	String query = String.format("""
+        		    SELECT * FROM get_shipment_performance(
+        		        '%s'::TIMESTAMP, 
+        		        '%s'::TIMESTAMP, 
+        		        %s
+        		    )
+        		""", startDate, endDate,
+        		     enterpriseKey == null ? "NULL" : "'" + enterpriseKey + "'");
+
 
             List<Map<String, Object>> result = postgresService.query(query);
             List<Map<String, Object>> shipments = new ArrayList<>();

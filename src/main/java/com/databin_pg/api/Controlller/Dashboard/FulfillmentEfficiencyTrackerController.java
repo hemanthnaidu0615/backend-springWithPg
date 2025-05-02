@@ -37,8 +37,9 @@ public class FulfillmentEfficiencyTrackerController {
 
             // Call the PostgreSQL function with explicit type casting, passing the enterpriseKey
             String query = String.format("""
-                SELECT * FROM get_fulfillment_summary('%s'::date, '%s'::date, '%s')
-            """, formattedStartDate, formattedEndDate, enterpriseKey);
+            	    SELECT * FROM get_fulfillment_summary('%s'::date, '%s'::date, %s)
+            	""", formattedStartDate, formattedEndDate,
+            	     enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey));
 
             List<Map<String, Object>> rows = postgresService.query(query);
             Map<String, Map<String, Integer>> summary = new LinkedHashMap<>();

@@ -25,10 +25,12 @@ public class TopSellingProductsController {
 
         try {
             // Include enterpriseKey in the query
-            String query = String.format(
-                "SELECT * FROM get_top_selling_products(TIMESTAMP '%s', TIMESTAMP '%s', '%s')", 
-                startDate, endDate, enterpriseKey
-            );
+        	String query = String.format(
+        		    "SELECT * FROM get_top_selling_products(TIMESTAMP '%s', TIMESTAMP '%s', %s)", 
+        		    startDate, endDate,
+        		    enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey)
+        		);
+
 
             List<Map<String, Object>> data = postgresService.query(query);
             List<Map<String, Object>> topProducts = new ArrayList<>();

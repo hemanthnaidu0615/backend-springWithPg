@@ -82,13 +82,14 @@ public class SalesByRegionController {
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey  // ✅ added
     ) {
         try {
-            String query = String.format("""
-                SELECT * FROM get_sales_by_region(
-                    '%s'::TIMESTAMP,
-                    '%s'::TIMESTAMP,
-                    '%s'::TEXT
-                )
-            """, startDate, endDate, enterpriseKey);  // ✅ added
+        	String query = String.format("""
+        		    SELECT * FROM get_sales_by_region(
+        		        '%s'::TIMESTAMP,
+        		        '%s'::TIMESTAMP,
+        		        %s::TEXT
+        		    )
+        		""", startDate, endDate, 
+        		     enterpriseKey == null ? "NULL" : "'" + enterpriseKey + "'");
 
             List<Map<String, Object>> data = postgresService.query(query);
 
@@ -110,14 +111,15 @@ public class SalesByRegionController {
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey
     ) {
         try {
-            String query = String.format("""
-                SELECT * FROM get_top5_states_by_revenue(
-                    '%s'::TIMESTAMP,
-                    '%s'::TIMESTAMP,
-                    '%s'
-                )
-            """, startDate, endDate, enterpriseKey);
-
+        	String query = String.format("""
+        		    SELECT * FROM get_top5_states_by_revenue(
+        		        '%s'::TIMESTAMP,
+        		        '%s'::TIMESTAMP,
+        		        %s::TEXT
+        		    )
+        		""", startDate, endDate, 
+        		     enterpriseKey == null ? "NULL" : "'" + enterpriseKey + "'");
+         
             List<Map<String, Object>> data = postgresService.query(query);
 
             return ResponseEntity.ok(data);
@@ -136,13 +138,14 @@ public class SalesByRegionController {
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey
     ) {
         try {
-            String query = String.format("""
-                SELECT * FROM get_countrywide_sales(
-                    '%s'::TIMESTAMP,
-                    '%s'::TIMESTAMP,
-                    '%s'
-                )
-            """, startDate, endDate, enterpriseKey);
+        	String query = String.format("""
+        		    SELECT * FROM get_countrywide_sales(
+        		        '%s'::TIMESTAMP,
+        		        '%s'::TIMESTAMP,
+        		        %s::TEXT
+        		    )
+        		""", startDate, endDate, 
+        		     enterpriseKey == null ? "NULL" : "'" + enterpriseKey + "'");
 
             List<Map<String, Object>> data = postgresService.query(query);
             mapStateNames(data);

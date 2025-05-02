@@ -23,11 +23,17 @@ public class RevenuePerCustomerController {
             @RequestParam(name = "endDate") String endDate,
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {  // Added enterpriseKey parameter
         try {
-            // Update the query to include enterpriseKey
-            String query = String.format("""
-                SELECT * FROM get_top_customers_by_revenue('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
-            """, startDate, endDate, enterpriseKey);  // Pass enterpriseKey to the stored procedure
+            // Format the startDate and endDate to ensure correct format (if necessary)
+            String formattedStartDate = startDate.length() > 10 ? startDate.substring(0, 10) : startDate;
+            String formattedEndDate = endDate.length() > 10 ? endDate.substring(0, 10) : endDate;
 
+            // Construct the query, passing NULL if enterpriseKey is not provided
+            String query = String.format("""
+                SELECT * FROM get_top_customers_by_revenue('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
+            """, formattedStartDate, formattedEndDate, 
+                    enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey));
+
+            // Execute the query
             List<Map<String, Object>> data = postgresService.query(query);
 
             List<Map<String, Object>> topCustomers = new ArrayList<>();
@@ -47,7 +53,7 @@ public class RevenuePerCustomerController {
 
             return ResponseEntity.ok(Map.of("top_customers", topCustomers));
         } catch (Exception e) {
-            e.printStackTrace();
+            e.printStackTrace();  // Log the exception for debugging
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch top customers by revenue"));
         }

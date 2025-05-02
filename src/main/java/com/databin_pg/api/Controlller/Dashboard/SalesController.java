@@ -81,9 +81,11 @@ public class SalesController {
             @RequestParam(name = "endDate") String endDate,
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
-            String query = String.format("""
-                SELECT * FROM get_sales_metrics('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
-            """, startDate, endDate, enterpriseKey);
+        	String query = String.format("""
+        		    SELECT * FROM get_sales_metrics('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
+        		""", startDate, endDate,
+        		    enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey));
+
 
             List<Map<String, Object>> result = postgresService.query(query);
 
@@ -114,9 +116,10 @@ public class SalesController {
             @RequestParam(name = "endDate") String endDate,
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
-            String query = String.format("""
-                SELECT * FROM get_statewise_customers_revenue('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
-            """, startDate, endDate, enterpriseKey);
+        	String query = String.format("""
+        		    SELECT * FROM get_statewise_customers_revenue('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
+        		""", startDate, endDate,
+        		    enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey));
 
             List<Map<String, Object>> data = postgresService.query(query);
             mapStateNames(data);
