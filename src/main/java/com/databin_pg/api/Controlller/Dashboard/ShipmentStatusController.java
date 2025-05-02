@@ -23,9 +23,15 @@ public class ShipmentStatusController {
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
             // Formulate the SQL query to call the stored procedure with enterpriseKey
-            String query = String.format(""" 
-                SELECT * FROM get_shipment_status_counts('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
-            """, startDate, endDate, enterpriseKey);
+        	String query = String.format("""
+        		    SELECT * FROM get_shipment_status_counts(
+        		        '%s'::TIMESTAMP, 
+        		        '%s'::TIMESTAMP, 
+        		        %s
+        		    )
+        		""", startDate, endDate, 
+        		     enterpriseKey == null ? "NULL" : "'" + enterpriseKey + "'");
+
 
             // Execute the query using the service layer
             List<Map<String, Object>> result = postgresService.query(query);

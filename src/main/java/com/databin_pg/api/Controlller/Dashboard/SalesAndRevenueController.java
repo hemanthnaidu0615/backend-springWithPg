@@ -24,9 +24,10 @@ public class SalesAndRevenueController {
             @RequestParam(name= "endDate") String endDate,
             @RequestParam(name= "enterpriseKey", required=false) String enterpriseKey) {  
         try {
-            String query = String.format("""
-                SELECT * FROM get_total_sales('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
-            """, startDate, endDate, enterpriseKey);
+        	String query = String.format("""
+                    SELECT * FROM get_total_sales('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
+                """, startDate, endDate,
+                    enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey));
 
             // Log the generated query
            // System.out.println("Executing Query: " + query);  // Debug log
@@ -70,9 +71,11 @@ public class SalesAndRevenueController {
             @RequestParam(name= "endDate") String endDate,
             @RequestParam(name= "enterpriseKey", required=false) String enterpriseKey) {  // Added enterpriseKey
         try {
-            String query = String.format("""
-                SELECT * FROM get_revenue_trends('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
-            """, startDate, endDate, enterpriseKey);
+        	String query = String.format("""
+                    SELECT * FROM get_revenue_trends('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
+                """, startDate, endDate,
+                    enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey));
+    
 
             List<Map<String, Object>> data = postgresService.query(query);
             List<Map<String, Object>> trends = new ArrayList<>();
@@ -108,10 +111,11 @@ public class SalesAndRevenueController {
             @RequestParam(name= "endDate") String endDate,
             @RequestParam(name= "enterpriseKey", required=false) String enterpriseKey) {  // Added enterpriseKey
         try {
-            String query = String.format("""
-                SELECT * FROM get_forecasted_sales('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
-            """, startDate, endDate, enterpriseKey);
-
+        	String query = String.format("""
+                    SELECT * FROM get_forecasted_sales('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
+                """, startDate, endDate,
+                    enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey));
+            
             List<Map<String, Object>> data = postgresService.query(query);
             List<Map<String, Object>> forecasts = new ArrayList<>();
 

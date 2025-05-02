@@ -26,8 +26,10 @@ public class DashboardKPIController {
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
         	String query = String.format("""
-        		    SELECT get_total_orders('%s', '%s', '%s') AS total_orders
-        		""", startDate, endDate, enterpriseKey);
+        		    SELECT get_total_orders('%s', '%s', %s) AS total_orders
+        		""", startDate, endDate,
+        		        (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'");
+
 
             List<Map<String, Object>> data = postgresService.query(query);
 
@@ -48,9 +50,11 @@ public class DashboardKPIController {
             @RequestParam(name = "endDate") String endDate,
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
-            String query = String.format("""
-                SELECT * FROM get_shipment_status_data('%s', '%s', '%s')
-            """, startDate, endDate, enterpriseKey);
+        	String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
+        	String query = String.format("""
+        	    SELECT * FROM get_shipment_status_data('%s', '%s', %s)
+        	""", startDate, endDate, formattedKey);
+
 
             List<Map<String, Object>> data = postgresService.query(query);
 
@@ -84,9 +88,11 @@ public class DashboardKPIController {
             @RequestParam(name = "endDate") String endDate,
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
-            String query = String.format("""
-                SELECT get_fulfillment_rate('%s', '%s', '%s') AS fulfillment_rate
-            """, startDate, endDate, enterpriseKey);
+        	String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
+        	String query = String.format("""
+        	    SELECT get_fulfillment_rate('%s', '%s', %s) AS fulfillment_rate
+        	""", startDate, endDate, formattedKey);
+
 
             List<Map<String, Object>> data = postgresService.query(query);
 
@@ -105,25 +111,27 @@ public class DashboardKPIController {
 
 
     // 📌 API: Get Out-of-Stock Product Count (no date filter)
-    @GetMapping("/out-of-stock")
-    public ResponseEntity<?> getOutOfStockCount(
-            @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
-        try {
-            String query = String.format("""
-                SELECT get_out_of_stock_count('%s', '%s', '%s') AS out_of_stock_count
-            """, startDate, endDate, enterpriseKey);
-
-            List<Map<String, Object>> data = postgresService.query(query);
-            int count = data.isEmpty() ? 0 : ((Number) data.get(0).get("out_of_stock_count")).intValue();
-
-            return ResponseEntity.ok(Map.of("out_of_stock_count", count));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to fetch out-of-stock count", "message", e.getMessage()));
-        }
-    }
+//    @GetMapping("/out-of-stock")
+//    public ResponseEntity<?> getOutOfStockCount(
+//            @RequestParam(name = "startDate") String startDate,
+//            @RequestParam(name = "endDate") String endDate,
+//            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
+//        try {
+//        	String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
+//        	String query = String.format("""
+//        	    SELECT get_out_of_stock_count('%s', '%s', %s) AS out_of_stock_count
+//        	""", startDate, endDate, formattedKey);
+//
+//
+//            List<Map<String, Object>> data = postgresService.query(query);
+//            int count = data.isEmpty() ? 0 : ((Number) data.get(0).get("out_of_stock_count")).intValue();
+//
+//            return ResponseEntity.ok(Map.of("out_of_stock_count", count));
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(Map.of("error", "Failed to fetch out-of-stock count", "message", e.getMessage()));
+//        }
+//    }
 
 
 

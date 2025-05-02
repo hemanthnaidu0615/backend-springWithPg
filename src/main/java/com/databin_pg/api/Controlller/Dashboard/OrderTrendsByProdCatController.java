@@ -16,22 +16,26 @@ public class OrderTrendsByProdCatController {
     @Autowired
     private PostgresService postgresService;
 
-    // 📌 API: Get Monthly Order Trends by Product Category (with date filtering)
     @GetMapping
     public ResponseEntity<?> getOrderTrendsByCategory(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
-            // Call the stored procedure for monthly order trends by category
-            String query = String.format("""
-                SELECT * FROM get_order_trends_by_category('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT)
-            """, startDate, endDate, enterpriseKey);
+            // Ensure startDate and endDate are formatted properly
+            String formattedStartDate = startDate.length() > 10 ? startDate.substring(0, 10) : startDate;
+            String formattedEndDate = endDate.length() > 10 ? endDate.substring(0, 10) : endDate;
 
-            // Execute the query using the PostgresService
+            // Construct the query, handling NULL for enterpriseKey
+            String query = String.format("""
+                SELECT * FROM get_order_trends_by_category('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
+            """, formattedStartDate, formattedEndDate,
+                    enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey));
+
+            // Execute the query
             List<Map<String, Object>> data = postgresService.query(query);
 
-            // 🧩 Transforming Result into a Nested Map Format
+            // 🧩 Transform the result into a nested map format
             Map<String, Map<String, Double>> result = new LinkedHashMap<>();
 
             for (Map<String, Object> row : data) {
@@ -45,13 +49,13 @@ public class OrderTrendsByProdCatController {
 
             return ResponseEntity.ok(Map.of("order_trends", result));
         } catch (Exception e) {
-            e.printStackTrace(); // Log the full stack trace
+            e.printStackTrace(); // Log the exception for debugging
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch order trends data", "details", e.getMessage()));
         }
     }
 
-    // 🔹 Helper Method: Convert Object to Double
+    // Helper Method: Convert Object to Double
     private double parseDouble(Object obj) {
         if (obj == null) return 0.0;
         if (obj instanceof Number) return ((Number) obj).doubleValue();

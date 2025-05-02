@@ -25,9 +25,11 @@ public class TablesController {
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
             // Use enterprise key in the query
-            String query = String.format("""
-                SELECT * FROM get_recent_orders('%s'::TIMESTAMP, '%s'::TIMESTAMP, '%s'::TEXT);
-            """, startDate, endDate, enterpriseKey);
+        	String query = String.format("""
+        		    SELECT * FROM get_recent_orders('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s);
+        		""", startDate, endDate,
+        		    enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey));
+
 
             List<Map<String, Object>> data = postgresService.query(query);
 
