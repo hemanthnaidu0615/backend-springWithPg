@@ -20,45 +20,38 @@ public class ShipmentStatusController {
     public ResponseEntity<?> getOrderStatusCount(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
+            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {
         try {
             // Formulate the SQL query to call the stored procedure with enterpriseKey
-        	String query = String.format("""
-        		    SELECT * FROM get_shipment_status_counts(
-        		        '%s'::TIMESTAMP, 
-        		        '%s'::TIMESTAMP, 
-        		        %s
-        		    )
-        		""", startDate, endDate, 
-        		     enterpriseKey == null ? "NULL" : "'" + enterpriseKey + "'");
-
+            String query = String.format("""
+                    SELECT * FROM get_shipment_status_counts(
+                        '%s'::TIMESTAMP, 
+                        '%s'::TIMESTAMP, 
+                        %s
+                    )
+                    """, startDate, endDate, 
+                    enterpriseKey == null ? "NULL" : "'" + enterpriseKey + "'");
 
             // Execute the query using the service layer
             List<Map<String, Object>> result = postgresService.query(query);
 
             // Initialize the status counts map
             Map<String, Integer> statusCounts = new LinkedHashMap<>(Map.of(
-                "Delivered", 0,
                 "Shipped", 0,
-                "Pending", 0,
                 "Cancelled", 0,
-                "Return Received", 0,
-                "Refunded", 0
+                "Returned", 0
             ));
 
             // Process the result set
-            int returnReceivedCount = 0;
             for (Map<String, Object> row : result) {
                 String status = Objects.toString(row.get("status"), "Unknown");
                 int count = parseInteger(row.get("count"));
-                statusCounts.put(status, count);
-                if ("Return Received".equals(status)) {
-                    returnReceivedCount = count;
+                
+                // Set the correct count for each status
+                if ("Shipped".equals(status) || "Cancelled".equals(status) || "Returned".equals(status)) {
+                    statusCounts.put(status, count);
                 }
             }
-
-            // Calculate the refunded status
-            statusCounts.put("Refunded", Math.round(returnReceivedCount / 3.0f));
 
             return ResponseEntity.ok(statusCounts);
 
