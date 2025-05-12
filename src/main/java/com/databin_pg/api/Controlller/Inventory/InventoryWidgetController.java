@@ -1,4 +1,4 @@
-//package com.databin_pg.api.Inventory;
+//package com.databin_pg.api.Controlller.Inventory;
 //
 //import com.databin_pg.api.Service.PostgresService;
 //import org.springframework.web.bind.annotation.*;
@@ -74,7 +74,7 @@
 
 
 
-package com.databin_pg.api.Inventory;
+package com.databin_pg.api.Controlller.Inventory;
 
 import com.databin_pg.api.Service.PostgresService;
 import org.springframework.web.bind.annotation.*;
@@ -100,7 +100,7 @@ public class InventoryWidgetController {
             @RequestParam(name = "statusFilter", required = false) String statusFilter,
             @RequestParam(name = "categoryFilter", required = false) String categoryFilter,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size) {
+            @RequestParam(defaultValue = "1000") int size) {
 
         try {
             int offset = page * size;
