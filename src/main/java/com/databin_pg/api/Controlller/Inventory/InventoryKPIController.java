@@ -1,4 +1,4 @@
-package com.databin_pg.api.Inventory;
+package com.databin_pg.api.Controlller.Inventory;
 
 import java.util.List;
 import java.util.Map;

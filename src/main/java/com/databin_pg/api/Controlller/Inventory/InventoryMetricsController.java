@@ -1,4 +1,4 @@
-package com.databin_pg.api.Inventory;
+package com.databin_pg.api.Controlller.Inventory;
 
 import com.databin_pg.api.Service.PostgresService;
 import org.springframework.web.bind.annotation.*;
