@@ -62,55 +62,88 @@ public class SchedulerExecutor {
             String bcc = scheduler.get("bcc") != null ? scheduler.get("bcc").toString() : null;
             String timeZoneStr = scheduler.get("timezone") != null ? scheduler.get("timezone").toString() : "UTC";
 
+            String title = scheduler.get("title").toString();
+            String description = scheduler.get("description") != null ? scheduler.get("description").toString() : "";
+
             ZoneId userZone = ZoneId.of(timeZoneStr);
             ZonedDateTime nowUserTime = nowUtc.atZone(ZoneOffset.UTC).withZoneSameInstant(userZone);
 
             List<Map<String, Object>> data;
+            String emailBody;
 
             if ("table_column".equals(type)) {
                 String tableName = scheduler.get("table_name").toString();
                 List<String> columns = Arrays.asList(scheduler.get("columns").toString().split(","));
 
-                // Fetch mapped date column from backend
                 Optional<String> dateColumnOpt = postgresService.getDateColumnForTable(tableName);
                 if (dateColumnOpt.isEmpty()) {
                     System.err.println("No date column mapped for table: " + tableName);
                     return;
                 }
+
                 String dateColumn = dateColumnOpt.get();
 
-                // Compute dynamic date range
                 LocalDateTime[] dateRange = computeDateRange(
                         scheduler.get("recurrence_pattern").toString(),
                         scheduler.get("date_range_type").toString(),
                         nowUserTime.toLocalDateTime()
                 );
+
                 LocalDateTime userStart = dateRange[0];
                 LocalDateTime userEnd = dateRange[1];
 
-                // Convert back to UTC for querying
                 ZonedDateTime utcStart = userStart.atZone(userZone).withZoneSameInstant(ZoneOffset.UTC);
                 ZonedDateTime utcEnd = userEnd.atZone(userZone).withZoneSameInstant(ZoneOffset.UTC);
 
                 String query = String.format(
-                    "SELECT %s FROM %s WHERE %s BETWEEN '%s' AND '%s'",
-                    String.join(",", columns), tableName, dateColumn,
-                    Timestamp.from(utcStart.toInstant()), Timestamp.from(utcEnd.toInstant())
+                        "SELECT %s FROM %s WHERE %s BETWEEN '%s' AND '%s'",
+                        String.join(",", columns), tableName, dateColumn,
+                        Timestamp.from(utcStart.toInstant()), Timestamp.from(utcEnd.toInstant())
                 );
 
                 data = postgresService.query(query);
-
-                // Convert timestamps in data to user's local time before sending
                 convertTimestampsToUserTime(data, dateColumn, userZone);
 
+                // Build email body for table_column
+                emailBody = String.format("""
+                    Hi,
+
+                    Your scheduled report for %s has been generated.
+
+                    Report Details:
+                    Start Date: %s
+                    End Date: %s
+                    Columns Selected: %s
+
+                    %s
+
+                    Please find the attached report for your reference.
+
+                    Thank you,
+                    Meridian Admin
+                    """, tableName, userStart, userEnd, String.join(", ", columns), description);
+
             } else {
-                // For custom_query type
+                // For custom_query
                 String query = scheduler.get("custom_query").toString();
                 data = postgresService.query(query);
+
+                emailBody = String.format("""
+                    Hi,
+
+                    Your scheduled custom query report has been generated.
+
+                    %s
+
+                    Please find the attached report for your reference.
+
+                    Thank you,
+                    Meridian Admin
+                    """, description);
             }
 
             byte[] excelData = ExcelUtil.generateExcel(data);
-            emailService.sendEmailWithAttachment(email, bcc, scheduler.get("title").toString(), excelData);
+            emailService.sendEmailWithAttachment(email, bcc, title, emailBody, excelData, title + ".xlsx");
 
         } catch (Exception e) {
             e.printStackTrace();
