@@ -1,4 +1,4 @@
-package com.databin_pg.api.Controlller.Sales.Dashboard;
+package com.databin_pg.api.Controlller.Sales.Region;
 
 import java.util.List;
 import java.util.Map;
