@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.databin_pg.api.DTO.QuerySchedulerRequest;
+import com.databin_pg.api.DTO.QueryValidationRequest;
 import com.databin_pg.api.DTO.TableSchedulerRequest;
 import com.databin_pg.api.Service.SchedulerService;
 
@@ -31,5 +32,17 @@ public class SchedulerController {
         schedulerService.saveQueryScheduler(request);
         return ResponseEntity.ok("Scheduler created");
     }
+    
+    @PostMapping("/validate-query")
+    public ResponseEntity<?> validateQuery(@RequestBody QueryValidationRequest request) {
+        boolean isValid = schedulerService.validateSQLQuery(request.query);
+        if (isValid) {
+            return ResponseEntity.ok("Query is valid");
+        } else {
+            return ResponseEntity.badRequest().body("Invalid query: syntax error or missing table/column");
+        }
+    }
+
+
 }
 

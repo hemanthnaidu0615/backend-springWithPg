@@ -13,11 +13,16 @@ import org.springframework.stereotype.Service;
 import com.databin_pg.api.DTO.QuerySchedulerRequest;
 import com.databin_pg.api.DTO.TableSchedulerRequest;
 
+import org.springframework.jdbc.core.JdbcTemplate;
+
 @Service
 public class SchedulerService {
 
     @Autowired
     private PostgresService postgresService;
+    
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     public void saveTableScheduler(TableSchedulerRequest request) {
         // ⛔ Removed `date_column` from the SQL
@@ -84,4 +89,16 @@ public class SchedulerService {
             customQuery
         ));
     }
+    public boolean validateSQLQuery(String query) {
+        query = query.strip(); // Java 11+ (use trim() if using older Java)
+        if (query.startsWith("\"") && query.endsWith("\"")) {
+            query = query.substring(1, query.length() - 1);
+        }
+
+        String sql = "SELECT validate_sql_query(?);";
+        Boolean isValid = jdbcTemplate.queryForObject(sql, Boolean.class, query);
+        return Boolean.TRUE.equals(isValid);
+    }
+
+
 }
