@@ -19,48 +19,48 @@ import com.databin_pg.api.Service.PostgresService;
 @CrossOrigin(origins = "http://localhost:5173")
 public class FulfillmentKPIController {
 
-	@Autowired
+    @Autowired
     private PostgresService postgresService;
-	// 📌 API: Get Fulfillment Dashboard KPI (Orders in Pipeline, Avg Fulfillment Time, On-Time Rate, Awaiting Processing)
-	@GetMapping("/kpi")
-	public ResponseEntity<?> getFulfillmentDashboardData(
-	        @RequestParam(name = "startDate") String startDate,
-	        @RequestParam(name = "endDate") String endDate,
-	        @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {
-	    try {
-	        String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
-	        String query = String.format("""
-	            SELECT * FROM get_fulfillment_dashboard_data('%s', '%s', %s)
-	        """, startDate, endDate, formattedKey);
 
-	        List<Map<String, Object>> data = postgresService.query(query);
+    // 📌 API: Get Fulfillment Dashboard KPI (Orders in Pipeline, Avg Fulfillment Time, On-Time Rate, Top Channel)
+    @GetMapping("/kpi")
+    public ResponseEntity<?> getFulfillmentDashboardData(
+            @RequestParam(name = "startDate") String startDate,
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {
+        try {
+            String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
+            String query = String.format("""
+                SELECT * FROM get_fulfillment_dashboard_data('%s', '%s', %s)
+            """, startDate, endDate, formattedKey);
 
-	        if (data.isEmpty()) {
-	            return ResponseEntity.ok(Map.of(
-	                "orders_in_pipeline", 0,
-	                "avg_fulfillment_time", "0.0 days",
-	                "on_time_rate", "0%",
-	                "awaiting_processing", 0
-	            ));
-	        }
+            List<Map<String, Object>> data = postgresService.query(query);
 
-	        Map<String, Object> row = data.get(0);
-	        int orders = ((Number) row.get("orders_in_pipeline")).intValue();
-	        double avgTime = ((Number) row.get("avg_fulfillment_time")).doubleValue();
-	        double onTimeRate = ((Number) row.get("on_time_rate")).doubleValue();
-	        int awaiting = ((Number) row.get("awaiting_processing")).intValue();
+            if (data.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                    "orders_in_pipeline", 0,
+                    "avg_fulfillment_time", "0 days",
+                    "on_time_rate", "0%",
+                    "top_channel", "N/A"
+                ));
+            }
 
-	        return ResponseEntity.ok(Map.of(
-	            "orders_in_pipeline", orders,
-	            "avg_fulfillment_time", String.format("%.1f days", avgTime),
-	            "on_time_rate", String.format("%.0f%%", onTimeRate),
-	            "awaiting_processing", awaiting
-	        ));
+            Map<String, Object> row = data.get(0);
+            int orders = ((Number) row.get("orders_in_pipeline")).intValue();
+            double avgTime = ((Number) row.get("avg_fulfillment_time")).doubleValue();
+            double onTimeRate = ((Number) row.get("on_time_rate")).doubleValue();
+            String topChannel = (String) row.get("top_channel");
 
-	    } catch (Exception e) {
-	        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-	                .body(Map.of("error", "Failed to fetch dashboard data", "details", e.getMessage()));
-	    }
-	}
+            return ResponseEntity.ok(Map.of(
+                "orders_in_pipeline", orders,
+                "avg_fulfillment_time", String.format("%.0f days", avgTime),
+                "on_time_rate", String.format("%.0f%%", onTimeRate),
+                "top_channel", (topChannel != null && !topChannel.isBlank()) ? topChannel : "N/A"
+            ));
 
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to fetch dashboard data", "details", e.getMessage()));
+        }
+    }
 }
