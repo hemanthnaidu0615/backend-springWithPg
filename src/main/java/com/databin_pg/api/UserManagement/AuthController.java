@@ -1,4 +1,5 @@
 package com.databin_pg.api.UserManagement;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import jakarta.servlet.http.Cookie;
@@ -21,29 +22,24 @@ import com.databin_pg.api.Repository.UserRepository;
 import com.databin_pg.api.Service.CustomUserDetailsService;
 import com.databin_pg.api.Service.UserService;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Map;
 import java.util.Optional;
 
-
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/api/auth")
 @CrossOrigin(origins = "*")
 public class AuthController {
-     @Autowired
+
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
     private DepartmentRepository departmentRepository;
 
-
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenUtil jwtTokenUtil;
     private final CustomUserDetailsService userDetailsService;
-    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     public AuthController(UserService userService,
                           AuthenticationManager authenticationManager,
@@ -61,42 +57,40 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> login(@RequestBody User loginRequest,HttpServletResponse response){
-        logger.info("Login attempt for user: {}", loginRequest.getEmail());
+    public ResponseEntity<Map<String, String>> login(@RequestBody User loginRequest, HttpServletResponse response) {
         try {
-           authenticationManager.authenticate(
+            authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                     loginRequest.getEmail(), loginRequest.getPassword()
                 )
             );
 
-           User dbUser = userService.findByEmail(loginRequest.getEmail())
-        .orElseThrow(() -> new RuntimeException("User not found with email: " + loginRequest.getEmail()));
+            User dbUser = userService.findByEmail(loginRequest.getEmail())
+                    .orElseThrow(() -> new RuntimeException("User not found with email: " + loginRequest.getEmail()));
             UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getEmail());
 
-            Long roleId = dbUser.getRole() != null ? dbUser.getRole().getId() : null;
-            String token = jwtTokenUtil.generateToken(userDetails, roleId);
+            String token = jwtTokenUtil.generateToken(userDetails,
+                    dbUser.getRole() != null ? dbUser.getRole().getId() : null);
 
             Cookie cookie = new Cookie("jwt", token);
             cookie.setHttpOnly(true);
-            cookie.setSecure(true); // true if using HTTPS
+            cookie.setSecure(true); // Set to false if not using HTTPS locally
             cookie.setPath("/");
             cookie.setMaxAge(3600); // 1 hour
             response.addCookie(cookie);
 
-
             return ResponseEntity.ok(Map.of(
                 "message", "Login successful",
                 "token", token,
-                "role", dbUser.getRole().getRoleLevel(),  // "admin", "manager", "user"
+                "role", dbUser.getRole() != null ? dbUser.getRole().getRoleLevel() : "user",
                 "email", dbUser.getEmail(),
                 "id", dbUser.getId().toString()
-    ));
+            ));
         } catch (Exception e) {
-            logger.error("Login failed for user: {}", loginRequest.getEmail(), e);
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
     }
+
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -116,49 +110,45 @@ public class AuthController {
 
         String departmentName = "All";
         if (role != null && role.getDepartmentId() != null) {
-            Optional<Department> departmentOptional = departmentRepository.findById(role.getDepartmentId());
-            if (departmentOptional.isPresent()) {
-                departmentName = departmentOptional.get().getName();
-            }
+            departmentName = departmentRepository.findById(role.getDepartmentId())
+                    .map(Department::getName)
+                    .orElse("All");
         }
 
         UserInfoResponse userInfo = new UserInfoResponse(user.getEmail(), roleLevel, departmentName);
         return ResponseEntity.ok(userInfo);
     }
+
     @GetMapping("/users")
-public ResponseEntity<?> getAllUsers(Authentication authentication) {
-    if (authentication == null || !authentication.isAuthenticated()) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+    public ResponseEntity<?> getAllUsers(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+        }
+
+        String email = authentication.getName();
+        Optional<User> userOptional = userRepository.findByEmail(email);
+        if (userOptional.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        }
+
+        User currentUser = userOptional.get();
+        String roleLevel = currentUser.getRole() != null ? currentUser.getRole().getRoleLevel() : "user";
+        if (!roleLevel.equalsIgnoreCase("admin") && !roleLevel.equalsIgnoreCase("manager")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+
+        return ResponseEntity.ok(userRepository.findAll());
     }
 
-    // Optional: Only allow ADMIN and MANAGER
-    String email = authentication.getName();
-    Optional<User> userOptional = userRepository.findByEmail(email);
-    if (userOptional.isEmpty()) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletResponse response) {
+        Cookie cookie = new Cookie("jwt", "");
+        cookie.setHttpOnly(true);
+        cookie.setSecure(false); // Set to false for localhost, true in production
+        cookie.setPath("/");
+        cookie.setMaxAge(0); // Delete immediately
+
+        response.addCookie(cookie);
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
-
-    User currentUser = userOptional.get();
-    String roleLevel = currentUser.getRole() != null ? currentUser.getRole().getRoleLevel() : "user";
-    if (!roleLevel.equalsIgnoreCase("admin") && !roleLevel.equalsIgnoreCase("manager")) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
-    }
-
-    return ResponseEntity.ok(userRepository.findAll());
-}
-@PostMapping("/logout")
-public ResponseEntity<?> logout(HttpServletResponse response) {
-    Cookie cookie = new Cookie("jwt", "");
-    cookie.setHttpOnly(true);
-    cookie.setSecure(false); // ❗ Set to false for localhost, true in production
-    cookie.setPath("/");
-    cookie.setMaxAge(0); // Delete immediately
-
-    response.addCookie(cookie);
-    return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
-}
-
-
-
-    
 }

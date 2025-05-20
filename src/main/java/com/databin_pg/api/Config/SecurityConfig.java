@@ -23,13 +23,16 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource())) // ✅ Use this
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/**").permitAll()
-                .requestMatchers("/api/v1/auth/logout").permitAll()
-                .requestMatchers("/api/v1/user/**").authenticated()
-                .requestMatchers("/api/auth/me").authenticated()
-                .anyRequest().authenticated()
-            )
+            // .authorizeHttpRequests(auth -> auth
+            //     .requestMatchers("/api/v1/auth/**").permitAll()
+            //     .requestMatchers("/api/v1/auth/logout").permitAll()
+            //     .requestMatchers("/api/v1/user/**").authenticated()
+            //     .requestMatchers("/api/auth/me").authenticated()
+            //     .anyRequest().authenticated()
+            // )
+
+            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+            
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
