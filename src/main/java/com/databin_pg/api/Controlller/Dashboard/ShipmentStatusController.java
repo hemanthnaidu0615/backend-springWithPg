@@ -15,14 +15,12 @@ public class ShipmentStatusController {
 
     @Autowired
     private PostgresService postgresService;
-
     @GetMapping("/count")
     public ResponseEntity<?> getOrderStatusCount(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
             @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {
         try {
-            // Formulate the SQL query to call the stored procedure with enterpriseKey
             String query = String.format("""
                     SELECT * FROM get_shipment_status_counts(
                         '%s'::TIMESTAMP, 
@@ -32,31 +30,34 @@ public class ShipmentStatusController {
                     """, startDate, endDate, 
                     enterpriseKey == null ? "NULL" : "'" + enterpriseKey + "'");
 
-            // Execute the query using the service layer
+            // ✅ Declare and assign the result list from your service
             List<Map<String, Object>> result = postgresService.query(query);
 
-            // Initialize the status counts map
+            Map<String, Object> response = new LinkedHashMap<>();
             Map<String, Integer> statusCounts = new LinkedHashMap<>(Map.of(
                 "Shipped", 0,
                 "Cancelled", 0,
                 "Returned", 0
             ));
+            int shippedPercentage = 0;
 
-            // Process the result set
             for (Map<String, Object> row : result) {
                 String status = Objects.toString(row.get("status"), "Unknown");
                 int count = parseInteger(row.get("count"));
-                
-                // Set the correct count for each status
+
                 if ("Shipped".equals(status) || "Cancelled".equals(status) || "Returned".equals(status)) {
                     statusCounts.put(status, count);
+                } else if ("ShippedPercentage".equals(status)) {
+                    shippedPercentage = count;
                 }
             }
 
-            return ResponseEntity.ok(statusCounts);
+            response.putAll(statusCounts);
+            response.put("ShippedPercentage", shippedPercentage);
+            return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            e.printStackTrace();  // Print the stack trace for better debugging
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch shipment status counts"));
         }
