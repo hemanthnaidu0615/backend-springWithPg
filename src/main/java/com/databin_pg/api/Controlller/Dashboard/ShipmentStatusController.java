@@ -15,6 +15,7 @@ public class ShipmentStatusController {
 
     @Autowired
     private PostgresService postgresService;
+
     @GetMapping("/count")
     public ResponseEntity<?> getOrderStatusCount(
             @RequestParam(name = "startDate") String startDate,
@@ -23,22 +24,20 @@ public class ShipmentStatusController {
         try {
             String query = String.format("""
                     SELECT * FROM get_shipment_status_counts(
-                        '%s'::TIMESTAMP, 
-                        '%s'::TIMESTAMP, 
+                        '%s'::TIMESTAMP,
+                        '%s'::TIMESTAMP,
                         %s
                     )
-                    """, startDate, endDate, 
+                    """, startDate, endDate,
                     enterpriseKey == null ? "NULL" : "'" + enterpriseKey + "'");
 
-            // ✅ Declare and assign the result list from your service
             List<Map<String, Object>> result = postgresService.query(query);
 
             Map<String, Object> response = new LinkedHashMap<>();
             Map<String, Integer> statusCounts = new LinkedHashMap<>(Map.of(
-                "Shipped", 0,
-                "Cancelled", 0,
-                "Returned", 0
-            ));
+                    "Shipped", 0,
+                    "Cancelled", 0,
+                    "Returned", 0));
             int shippedPercentage = 0;
 
             for (Map<String, Object> row : result) {
@@ -64,8 +63,10 @@ public class ShipmentStatusController {
     }
 
     private int parseInteger(Object obj) {
-        if (obj == null) return 0;
-        if (obj instanceof Number) return ((Number) obj).intValue();
+        if (obj == null)
+            return 0;
+        if (obj instanceof Number)
+            return ((Number) obj).intValue();
         try {
             return Integer.parseInt(obj.toString().trim());
         } catch (NumberFormatException e) {
