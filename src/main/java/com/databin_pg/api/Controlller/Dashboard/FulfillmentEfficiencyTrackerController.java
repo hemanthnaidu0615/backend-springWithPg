@@ -51,9 +51,10 @@ public class FulfillmentEfficiencyTrackerController {
 
                 if (category.equals("Unknown")) continue;
 
-                summary.computeIfAbsent(eventDay, k -> new LinkedHashMap<>());
-                summary.get(eventDay).merge(category, count, Integer::sum);
+                summary.computeIfAbsent(category, k -> new LinkedHashMap<>());
+                summary.get(category).merge(eventDay, count, Integer::sum);
             }
+
 
             return ResponseEntity.ok(Map.of("fulfillment_summary", summary));
 
