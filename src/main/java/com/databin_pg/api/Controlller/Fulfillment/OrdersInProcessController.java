@@ -67,14 +67,13 @@ public class OrdersInProcessController {
     @Autowired
     private PostgresService postgresService;
 
-    // 📌 API: Get Orders In Process with status and ETA
     @GetMapping("/orders-in-process")
     public ResponseEntity<?> getOrdersInProcess(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
             @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "1000") int size) {
+            @RequestParam(defaultValue = "10") int size) {   
 
         try {
             String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
@@ -83,18 +82,28 @@ public class OrdersInProcessController {
 
             int offset = page * size;
 
-            String query = String.format("""
+            String countQuery = String.format("""
+                SELECT COUNT(*) as total FROM get_orders_in_process('%s', '%s', %s)
+            """, formattedStartDate, formattedEndDate, formattedKey);
+
+            List<Map<String, Object>> countResult = postgresService.query(countQuery);
+            int totalCount = 0;
+            if (!countResult.isEmpty() && countResult.get(0).get("total") != null) {
+                totalCount = ((Number) countResult.get(0).get("total")).intValue();
+            }
+
+            String dataQuery = String.format("""
                 SELECT * FROM get_orders_in_process('%s', '%s', %s)
                 OFFSET %d LIMIT %d
             """, formattedStartDate, formattedEndDate, formattedKey, offset, size);
 
-            List<Map<String, Object>> data = postgresService.query(query);
+            List<Map<String, Object>> data = postgresService.query(dataQuery);
 
             return ResponseEntity.ok(Map.of(
                 "data", data,
                 "page", page,
                 "size", size,
-                "count", data.size()
+                "count", totalCount   
             ));
 
         } catch (Exception e) {
@@ -102,6 +111,7 @@ public class OrdersInProcessController {
                     .body(Map.of("error", "Failed to fetch orders in process", "details", e.getMessage()));
         }
     }
+
 
 }
 
