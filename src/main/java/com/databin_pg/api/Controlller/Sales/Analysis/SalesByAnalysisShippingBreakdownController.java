@@ -15,31 +15,40 @@ public class SalesByAnalysisShippingBreakdownController {
 	  @Autowired
 	    private PostgresService postgresService;
 
-	    @GetMapping("/shipment-summary")
+	   @GetMapping("/shipment-summary")
 	    public ResponseEntity<?> getShipmentSummary(
 	            @RequestParam(name = "startDate") String startDate,
 	            @RequestParam(name = "endDate") String endDate,
-	            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey
+	            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey,
+	            @RequestParam(defaultValue = "0") int page,
+	            @RequestParam(defaultValue = "50") int size
 	    ) {
 	        try {
-	            // Format nullable parameter
-	            String formattedEnterpriseKey = (enterpriseKey == null || enterpriseKey.isBlank())
-	                    ? "NULL" : "'" + enterpriseKey + "'";
+	            // Prepare values
+	            String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
+	            String formattedStartDate = startDate.split("T")[0];
+	            String formattedEndDate = endDate.split("T")[0];
+	            int offset = page * size;
 
-	            // SQL query
-	            String query = String.format("""
-	                SELECT * FROM get_shipment_summary('%s'::timestamp, '%s'::timestamp, %s)
-	            """, startDate, endDate, formattedEnterpriseKey);
+	            // Count query
+	            String countQuery = String.format("""
+	                SELECT COUNT(*) AS total FROM get_shipment_summary('%s'::timestamp, '%s'::timestamp, %s)
+	            """, formattedStartDate, formattedEndDate, formattedKey);
 
-	            // Execute query
-	            List<Map<String, Object>> result = postgresService.query(query);
-
-	            if (result.isEmpty()) {
-	                return ResponseEntity.status(HttpStatus.NO_CONTENT)
-	                        .body(Map.of("message", "No shipment data found for the given period."));
+	            List<Map<String, Object>> countResult = postgresService.query(countQuery);
+	            int totalCount = 0;
+	            if (!countResult.isEmpty() && countResult.get(0).get("total") != null) {
+	                totalCount = ((Number) countResult.get(0).get("total")).intValue();
 	            }
 
-	            // Format response
+	            // Data query with LIMIT and OFFSET
+	            String dataQuery = String.format("""
+	                SELECT * FROM get_shipment_summary('%s'::timestamp, '%s'::timestamp, %s)
+	                OFFSET %d LIMIT %d
+	            """, formattedStartDate, formattedEndDate, formattedKey, offset, size);
+
+	            List<Map<String, Object>> result = postgresService.query(dataQuery);
+
 	            List<Map<String, Object>> shipmentData = new ArrayList<>();
 	            for (Map<String, Object> row : result) {
 	                Map<String, Object> shipment = Map.of(
@@ -51,7 +60,12 @@ public class SalesByAnalysisShippingBreakdownController {
 	                shipmentData.add(shipment);
 	            }
 
-	            return ResponseEntity.ok(Map.of("shipments", shipmentData));
+	            return ResponseEntity.ok(Map.of(
+	                    "shipments", shipmentData,
+	                    "page", page,
+	                    "size", size,
+	                    "count", totalCount
+	            ));
 
 	        } catch (Exception e) {
 	            e.printStackTrace();
