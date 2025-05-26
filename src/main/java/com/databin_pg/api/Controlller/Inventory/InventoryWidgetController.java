@@ -67,13 +67,6 @@
 //
 //}
 
-
-
-
-
-
-
-
 package com.databin_pg.api.Controlller.Inventory;
 
 import com.databin_pg.api.Service.PostgresService;
@@ -100,31 +93,48 @@ public class InventoryWidgetController {
             @RequestParam(name = "statusFilter", required = false) String statusFilter,
             @RequestParam(name = "categoryFilter", required = false) String categoryFilter,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "1000") int size) {
+            @RequestParam(defaultValue = "10") int size) {
 
         try {
             int offset = page * size;
 
-            String query = String.format("""
-                SELECT * FROM get_inventory_widget_data(
-                    '%s'::date,
-                    '%s'::date,
-                    %s,
-                    %s,
-                    %s
-                )
-                OFFSET %d LIMIT %d
-                """,
-                startDate,
-                endDate,
-                searchProduct == null ? "NULL" : "'" + searchProduct + "'",
-                statusFilter == null ? "NULL" : "'" + statusFilter + "'",
-                categoryFilter == null ? "NULL" : "'" + categoryFilter + "'",
-                offset,
-                size
-            );
+            String dataQuery = String.format("""
+                    SELECT * FROM get_inventory_widget_data(
+                        '%s'::date,
+                        '%s'::date,
+                        %s,
+                        %s,
+                        %s
+                    )
+                    OFFSET %d LIMIT %d
+                    """,
+                    startDate,
+                    endDate,
+                    searchProduct == null ? "NULL" : "'" + searchProduct + "'",
+                    statusFilter == null ? "NULL" : "'" + statusFilter + "'",
+                    categoryFilter == null ? "NULL" : "'" + categoryFilter + "'",
+                    offset,
+                    size);
 
-            List<Map<String, Object>> result = postgresService.query(query);
+            String countQuery = String.format("""
+                    SELECT COUNT(*) as total FROM get_inventory_widget_data(
+                        '%s'::date,
+                        '%s'::date,
+                        %s,
+                        %s,
+                        %s
+                    )
+                    """,
+                    startDate,
+                    endDate,
+                    searchProduct == null ? "NULL" : "'" + searchProduct + "'",
+                    statusFilter == null ? "NULL" : "'" + statusFilter + "'",
+                    categoryFilter == null ? "NULL" : "'" + categoryFilter + "'");
+
+            List<Map<String, Object>> result = postgresService.query(dataQuery);
+            List<Map<String, Object>> countResult = postgresService.query(countQuery);
+
+            int totalCount = ((Number) countResult.get(0).get("total")).intValue();
 
             List<Map<String, Object>> widgetData = new ArrayList<>(result.size());
             for (Map<String, Object> row : result) {
@@ -134,16 +144,14 @@ public class InventoryWidgetController {
                         "warehouse_name", row.get("warehouse_name"),
                         "warehouse_function", row.get("warehouse_function"),
                         "warehouse_state", row.get("warehouse_state"),
-                        "inventory_status", row.get("inventory_status")
-                ));
+                        "inventory_status", row.get("inventory_status")));
             }
 
             return ResponseEntity.ok(Map.of(
                     "data", widgetData,
+                    "count", totalCount,
                     "page", page,
-                    "size", size,
-                    "count", widgetData.size()
-            ));
+                    "size", size));
 
         } catch (Exception e) {
             e.printStackTrace();
