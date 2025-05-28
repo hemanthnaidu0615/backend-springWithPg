@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @RestController
@@ -15,6 +17,8 @@ public class ChartsController {
 
     @Autowired
     private PostgresService postgresService;
+
+    private static final DateTimeFormatter INPUT_DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     // API for enterpriseKey AWW
     @GetMapping("/aww")
@@ -34,9 +38,13 @@ public class ChartsController {
 
     private ResponseEntity<?> callStoredProcedure(String procName, String startDate, String endDate) {
         try {
+            // Parse and reformat input dates
+            LocalDate start = LocalDate.parse(startDate.substring(0, 10), INPUT_DATE_FORMAT);
+            LocalDate end = LocalDate.parse(endDate.substring(0, 10), INPUT_DATE_FORMAT);
+
             String query = String.format(
                 "SELECT * FROM %s('%s'::timestamp, '%s'::timestamp)",
-                procName, startDate, endDate);
+                procName, start, end);
 
             List<Map<String, Object>> result = postgresService.query(query);
 
@@ -44,7 +52,12 @@ public class ChartsController {
                 return ResponseEntity.status(HttpStatus.NO_CONTENT)
                         .body(Map.of("message", "No order data found."));
             }
-            return ResponseEntity.ok(result);
+
+            return ResponseEntity.ok(Map.of(
+                "startDate", start,
+                "endDate", end,
+                "data", result
+            ));
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -53,4 +66,3 @@ public class ChartsController {
         }
     }
 }
-
