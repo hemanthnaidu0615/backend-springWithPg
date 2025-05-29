@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @RestController
@@ -26,16 +28,34 @@ public class SalesByAnalysisSalesTrendsController {
             @RequestParam(name = "fulfillmentChannel", required = false) String fulfillmentChannel
     ) {
         try {
-            // Format nullable string parameters for SQL
+            // Parse dates
+            LocalDate start = LocalDate.parse(startDate);
+            LocalDate end = LocalDate.parse(endDate);
+            long daysBetween = ChronoUnit.DAYS.between(start, end);
+
+            // Determine aggregation level
+            String aggregationLevel;
+            if (daysBetween < 7) {
+                aggregationLevel = "day";
+            } else if (daysBetween < 30) {
+                aggregationLevel = "week";
+            } else if (daysBetween < 365) {
+                aggregationLevel = "month";
+            } else {
+                aggregationLevel = "year";
+            }
+
+
+            // Format parameters
             String formattedEnterpriseKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
             String formattedFulfillmentChannel = (fulfillmentChannel == null || fulfillmentChannel.isBlank()) ? "NULL" : "'" + fulfillmentChannel + "'";
 
-            // Build the query with all parameters
+            // Build SQL query
             String query = String.format("""
-                SELECT * FROM get_sales_by_date('%s'::timestamp, '%s'::timestamp, %s, %s)
-            """, startDate, endDate, formattedEnterpriseKey, formattedFulfillmentChannel);
+                SELECT * FROM get_sales_by_date('%s'::timestamp, '%s'::timestamp, %s, %s, '%s')
+            """, startDate, endDate, formattedEnterpriseKey, formattedFulfillmentChannel, aggregationLevel);
 
-            // Execute the query
+            // Execute
             List<Map<String, Object>> result = postgresService.query(query);
 
             if (result.isEmpty()) {
@@ -43,17 +63,19 @@ public class SalesByAnalysisSalesTrendsController {
                         .body(Map.of("message", "No sales data found for the given period."));
             }
 
-            // Process results
+            // Transform
             List<Map<String, Object>> salesData = new ArrayList<>();
             for (Map<String, Object> row : result) {
-                Map<String, Object> sale = Map.of(
-                        "order_date", row.get("order_date"),
+                salesData.add(Map.of(
+                        "period", row.get("period"),
                         "total_amount", row.get("total_amount")
-                );
-                salesData.add(sale);
+                ));
             }
 
-            return ResponseEntity.ok(Map.of("sales", salesData));
+            return ResponseEntity.ok(Map.of(
+                    "aggregation_level", aggregationLevel,
+                    "sales", salesData
+            ));
 
         } catch (Exception e) {
             e.printStackTrace();
