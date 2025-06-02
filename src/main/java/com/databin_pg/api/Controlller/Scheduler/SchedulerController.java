@@ -15,7 +15,7 @@ import com.databin_pg.api.Service.SchedulerService;
 
 @RestController
 @RequestMapping("/api/schedulers")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class SchedulerController {
 
     @Autowired

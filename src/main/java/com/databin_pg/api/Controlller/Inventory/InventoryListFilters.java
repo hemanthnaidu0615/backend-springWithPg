@@ -15,7 +15,7 @@ import com.databin_pg.api.Service.PostgresService;
 
 @RestController
 @RequestMapping("/api/inventory")
-@CrossOrigin(origins = "http://localhost:5173") 
+@CrossOrigin(origins = "*") 
 
 public class InventoryListFilters {
 	@Autowired

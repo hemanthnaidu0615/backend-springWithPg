@@ -12,7 +12,7 @@ import com.databin_pg.api.Service.PostgresService;
 
 @RestController
 @RequestMapping("/api/recent-shipments")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class RecentShipmentsController {
 
     @Autowired

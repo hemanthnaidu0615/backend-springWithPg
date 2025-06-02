@@ -10,7 +10,7 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/sales")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 
 public class SalesByDashboardMetricsController {
 	@Autowired

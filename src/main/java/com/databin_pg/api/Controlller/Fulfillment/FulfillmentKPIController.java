@@ -16,7 +16,7 @@ import com.databin_pg.api.Service.PostgresService;
 
 @RestController
 @RequestMapping("/api/fulfillment")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class FulfillmentKPIController {
 
     @Autowired

@@ -12,7 +12,7 @@
 //
 //@RestController
 //@RequestMapping("/api/fulfillment")
-//@CrossOrigin(origins = "http://localhost:5173")
+//@CrossOrigin(origins = "*")
 //public class OrdersInProcessController {
 //
 //    @Autowired
@@ -60,7 +60,7 @@ import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/fulfillment")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class OrdersInProcessController {
 
     @Autowired
