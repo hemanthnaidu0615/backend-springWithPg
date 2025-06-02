@@ -79,7 +79,7 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/inventory")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class InventoryWidgetController {
 
     @Autowired

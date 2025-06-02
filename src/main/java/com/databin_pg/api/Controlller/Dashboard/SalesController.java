@@ -15,7 +15,7 @@ import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/sales")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class SalesController {
 
     @Autowired
