@@ -133,7 +133,7 @@ public class SchedulerExecutor {
 
                     Your scheduled custom query report has been generated.
 
-                    %s
+                    Description: %s
 
                     Please find the attached report for your reference.
 
