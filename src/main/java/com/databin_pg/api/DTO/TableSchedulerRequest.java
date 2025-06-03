@@ -14,5 +14,6 @@ public class TableSchedulerRequest {
     public String tableName;
     public List<String> columns;
     public String dateColumn;
+    public String timezone;
     public String dateRangeType; // e.g., "past week", "past month"
 }
