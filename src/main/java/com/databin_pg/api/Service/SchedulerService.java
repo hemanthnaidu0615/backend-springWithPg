@@ -26,11 +26,12 @@ public class SchedulerService {
 
     public void saveTableScheduler(TableSchedulerRequest request) {
         // ⛔ Removed `date_column` from the SQL
-        String sql = """
-            INSERT INTO report_schedulers 
-            (title, description, start_date, end_date, email, bcc, recurrence_pattern, type, table_name, columns, date_range_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'table_column', ?, ?, ?)
-        """;
+    	String sql = """
+    		    INSERT INTO report_schedulers 
+    		    (title, description, start_date, end_date, email, bcc, recurrence_pattern, type, table_name, columns, date_range_type, timezone)
+    		    VALUES (?, ?, ?, ?, ?, ?, ?, 'table_column', ?, ?, ?, ?)
+    		""";
+
 
         List<String> columns = (request.columns != null && !request.columns.isEmpty()) 
             ? request.columns 
@@ -48,16 +49,19 @@ public class SchedulerService {
             Objects.toString(request.recurrencePattern, ""),
             Objects.toString(request.tableName, ""),
             columnsStr,
-            Objects.toString(request.dateRangeType, "")
+            Objects.toString(request.dateRangeType, ""),
+            Objects.toString(request.timezone, "UTC")
+
         ));
     }
 
     public void saveQueryScheduler(QuerySchedulerRequest request) {
-        String sql = """
-            INSERT INTO report_schedulers 
-            (title, description, start_date, end_date, email, bcc, recurrence_pattern, type, custom_query)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'query', ?)
-        """; 
+    	String sql = """
+    		    INSERT INTO report_schedulers 
+    		    (title, description, start_date, end_date, email, bcc, recurrence_pattern, type, custom_query, timezone)
+    		    VALUES (?, ?, ?, ?, ?, ?, ?, 'query', ?, ?)
+    		""";
+
 
         // Safeguard against null fields
         String title = Objects.toString(request.title, "");
@@ -69,6 +73,7 @@ public class SchedulerService {
         String recurrencePattern = Objects.toString(request.recurrencePattern, "");
         String customQuery = Objects.toString(request.customQuery, "");
 
+        String timezone = Objects.toString(request.timezone, "UTC");
         // Use ISO_LOCAL_DATE_TIME to parse the date-time string correctly
         DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
         LocalDateTime startDateTime = LocalDateTime.parse(startDateStr, formatter);
@@ -86,7 +91,8 @@ public class SchedulerService {
             email,
             bcc,
             recurrencePattern,
-            customQuery
+            customQuery,
+            timezone
         ));
     }
     public boolean validateSQLQuery(String query) {

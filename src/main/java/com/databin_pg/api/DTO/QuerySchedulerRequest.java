@@ -11,4 +11,5 @@ public class QuerySchedulerRequest {
     public String bcc;
     public String recurrencePattern;
     public String customQuery;
+    public String timezone;
 }
