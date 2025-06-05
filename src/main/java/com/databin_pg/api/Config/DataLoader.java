@@ -32,37 +32,30 @@ public class DataLoader implements CommandLineRunner {
     }
 
     @Override
-    public void run(String... args) throws Exception {
-        // Check if admin role exists
-        Role adminRole = roleRepository.findAll().stream()
-                .filter(r -> "admin".equalsIgnoreCase(r.getRoleLevel()) && r.getDepartmentId() == null)
-                .findFirst()
-                .orElse(null);
+    public void run(String... args) {
+        // Look up only by unique identifier
+        Role adminRole = roleRepository.findByIdentifier("ADMIN_GLOBAL")
+            .orElseGet(() -> {
+                Role newAdminRole = new Role();
+                newAdminRole.setRoleLevel("admin");
+                newAdminRole.setAccessType("full");
+                newAdminRole.setIdentifier("ADMIN_GLOBAL");
+                newAdminRole.setDepartmentId(null);
+                return roleRepository.save(newAdminRole);
+            });
 
-        if (adminRole == null) {
-            adminRole = new Role();
-            adminRole.setRoleLevel("admin");
-            adminRole.setAccessType("full");
-            adminRole.setIdentifier("ADMIN_GLOBAL");
-            adminRole.setDepartmentId(null); // global admin has no department
-            roleRepository.save(adminRole);
-        }
-
-        // Check if admin user exists
-        Optional<User> existingAdmin = userRepository.findByEmail("meridianTechsol@meridianit.com");
-
-        if (existingAdmin.isEmpty()) {
-            User adminUser = new User();
-            adminUser.setEmail("meridianTechsol@meridianit.com");
-            adminUser.setPassword(passwordEncoder.encode("meridianit"));
-            adminUser.setRole(adminRole);
-            adminUser.setRoleIdentifier("ADMIN_GLOBAL");
-            adminUser.setDepartment(null); // No department for admin
-            userRepository.save(adminUser);
-
-            System.out.println("✅ Admin user created.");
-        } else {
-            System.out.println("ℹ️ Admin user already exists.");
-        }
+        // Seed admin user
+        userRepository.findByEmail("meridianTechsol@meridianit.com").ifPresentOrElse(
+            u -> System.out.println("ℹ️ Admin user already exists."),
+            () -> {
+                User admin = new User();
+                admin.setEmail("meridianTechsol@meridianit.com");
+                admin.setPassword(passwordEncoder.encode("meridianit"));
+                admin.setRole(adminRole);
+                admin.setRoleIdentifier(adminRole.getIdentifier());
+                admin.setDepartment(null);
+                userRepository.save(admin);
+                System.out.println("✅ Global admin user created.");
+            });
     }
 }
