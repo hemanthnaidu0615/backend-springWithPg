@@ -3,9 +3,16 @@ package com.databin_pg.api.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Statement;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.sql.Array;
 import java.util.Optional;
 
 @Service
@@ -35,6 +42,42 @@ public class PostgresService {
     public Optional<String> getDateColumnForTable(String tableName) {
         return Optional.ofNullable(TABLE_DATE_COLUMNS.get(tableName));
     }
+    
+    @Autowired
+    private DataSource dataSource;
+
+    public List<Map<String, Object>> queryWithArrayHandling(String sql) {
+        List<Map<String, Object>> results = new java.util.ArrayList<>();
+
+        try (
+            Connection conn = dataSource.getConnection();
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)
+        ) {
+            ResultSetMetaData metaData = rs.getMetaData();
+            int columnCount = metaData.getColumnCount();
+
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                for (int i = 1; i <= columnCount; i++) {
+                    String column = metaData.getColumnLabel(i);
+                    Object value = rs.getObject(i);
+                    if (value instanceof Array) {
+                        Object[] array = (Object[]) ((Array) value).getArray();
+                        row.put(column, Arrays.asList(array));
+                    } else {
+                        row.put(column, value);
+                    }
+                }
+                results.add(row);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error executing queryWithArrayHandling: " + e.getMessage(), e);
+        }
+
+        return results;
+    }
+
 
 
 }
