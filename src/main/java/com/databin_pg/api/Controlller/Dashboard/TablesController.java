@@ -22,26 +22,42 @@ public class TablesController {
     public ResponseEntity<?> getRecentOrders(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
+            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
         try {
-            // Use enterprise key in the query
-        	String query = String.format("""
-        		    SELECT * FROM get_recent_orders('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s);
-        		""", startDate, endDate,
-        		    enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey));
+            String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
+            int offset = page * size;
 
+            // Count query
+            String countQuery = String.format("""
+                SELECT COUNT(*) as total FROM get_recent_orders('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
+            """, startDate, endDate, formattedKey);
 
-            List<Map<String, Object>> data = postgresService.query(query);
-
-            if (data.isEmpty()) {
-                return ResponseEntity.ok(Collections.singletonMap("message", "No recent orders found."));
+            List<Map<String, Object>> countResult = postgresService.query(countQuery);
+            int totalCount = 0;
+            if (!countResult.isEmpty() && countResult.get(0).get("total") != null) {
+                totalCount = ((Number) countResult.get(0).get("total")).intValue();
             }
 
-            return ResponseEntity.ok(data);
+            // Paginated data query
+            String dataQuery = String.format("""
+                SELECT * FROM get_recent_orders('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
+                OFFSET %d LIMIT %d
+            """, startDate, endDate, formattedKey, offset, size);
+
+            List<Map<String, Object>> data = postgresService.query(dataQuery);
+
+            return ResponseEntity.ok(Map.of(
+                    "data", data,
+                    "page", page,
+                    "size", size,
+                    "count", totalCount));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Collections.singletonMap("error", "Failed to fetch recent orders"));
+                    .body(Map.of("error", "Failed to fetch recent orders", "details", e.getMessage()));
         }
     }
 

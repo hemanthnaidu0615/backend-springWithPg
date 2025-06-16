@@ -18,17 +18,35 @@ public class ViewSchedulerController {
     private PostgresService postgresService;
 
     @GetMapping
-    public ResponseEntity<?> getSchedulerSummary() {
+    public ResponseEntity<?> getSchedulerSummary(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
         try {
-            String query = "SELECT * FROM get_scheduler_summary()";
-            List<Map<String, Object>> result = postgresService.query(query);
+            int offset = page * size;
 
-            if (result.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NO_CONTENT)
-                        .body(Map.of("message", "No scheduler data found."));
-            }
+            // Count query
+            String countQuery = "SELECT COUNT(*) AS total FROM get_scheduler_summary()";
+            List<Map<String, Object>> countResult = postgresService.query(countQuery);
 
-            return ResponseEntity.ok(result);
+            int totalCount = (!countResult.isEmpty() && countResult.get(0).get("total") != null)
+                    ? ((Number) countResult.get(0).get("total")).intValue()
+                    : 0;
+
+            // Paginated query
+            String dataQuery = String.format("""
+                SELECT * FROM get_scheduler_summary()
+                OFFSET %d LIMIT %d
+            """, offset, size);
+
+            List<Map<String, Object>> result = postgresService.query(dataQuery);
+
+            return ResponseEntity.ok(Map.of(
+                    "data", result,
+                    "page", page,
+                    "size", size,
+                    "count", totalCount
+            ));
 
         } catch (Exception e) {
             e.printStackTrace();

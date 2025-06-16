@@ -1,6 +1,9 @@
 package com.databin_pg.api.UserManagement;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -120,7 +123,11 @@ public class AuthController {
     }
 
     @GetMapping("/users")
-    public ResponseEntity<?> getAllUsers(Authentication authentication) {
+    public ResponseEntity<?> getAllUsers(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
         }
@@ -137,7 +144,21 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
         }
 
-        return ResponseEntity.ok(userRepository.findAll());
+        int offset = page * size;
+
+        // Total count of users
+        long totalCount = userRepository.count();
+
+        // Fetch paginated users (assuming you're using Spring Data JPA)
+        Pageable pageable = PageRequest.of(page, size);
+        Page<User> userPage = userRepository.findAll(PageRequest.of(page, size)); 
+
+        return ResponseEntity.ok(Map.of(
+                "users", userPage.getContent(),
+                "page", page,
+                "size", size,
+                "count", totalCount
+        ));
     }
 
     @PostMapping("/logout")

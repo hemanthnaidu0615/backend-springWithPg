@@ -16,7 +16,7 @@ public class OrdersPage {
     @Autowired
     private PostgresService postgresService;
 
-    // 📌 API: Get Orders with all filters including enterpriseKey
+    // 📌 API: Get Orders with all filters including enterpriseKey + pagination
     @GetMapping("/filtered")
     public ResponseEntity<?> getFilteredOrders(
             @RequestParam(name = "startDate") String startDate,
@@ -27,14 +27,15 @@ public class OrdersPage {
             @RequestParam(name = "carrier", required = false) String carrier,
             @RequestParam(name = "searchCustomer", required = false) String searchCustomer,
             @RequestParam(name = "searchOrderId", required = false) String searchOrderId,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey
+            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
         try {
-            String query = String.format("""
-                SELECT * FROM get_filtered_orders(
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s
-                )
-            """,
+            int offset = page * size;
+
+            // Build filter arguments for query
+            String[] args = new String[]{
                 startDate != null ? "TIMESTAMP '" + startDate + "'" : "NULL",
                 endDate != null ? "TIMESTAMP '" + endDate + "'" : "NULL",
                 status != null ? "'" + status + "'" : "NULL",
@@ -44,19 +45,41 @@ public class OrdersPage {
                 searchCustomer != null ? "'" + searchCustomer + "'" : "NULL",
                 searchOrderId != null ? "'" + searchOrderId + "'" : "NULL",
                 enterpriseKey != null ? "'" + enterpriseKey + "'" : "NULL"
-            );
+            };
 
-            List<Map<String, Object>> results = postgresService.query(query);
+            // Count query
+            String countQuery = String.format("""
+            	    SELECT COUNT(*) as total FROM get_filtered_orders(
+            	        %s, %s, %s, %s, %s, %s, %s, %s, %s
+            	    )
+            	""", (Object[]) args);
 
-            if (results.isEmpty()) {
-                return ResponseEntity.ok(Collections.singletonMap("message", "No orders found."));
+            List<Map<String, Object>> countResult = postgresService.query(countQuery);
+            int totalCount = 0;
+            if (!countResult.isEmpty() && countResult.get(0).get("total") != null) {
+                totalCount = ((Number) countResult.get(0).get("total")).intValue();
             }
 
-            return ResponseEntity.ok(results);
+            // Paginated data query
+            String dataQuery = String.format("""
+            	    SELECT * FROM get_filtered_orders(
+            	        %s, %s, %s, %s, %s, %s, %s, %s, %s
+            	    )
+            	    OFFSET %d LIMIT %d
+            	""", (Object[]) Arrays.copyOf(args, args.length + 2));
+
+            List<Map<String, Object>> results = postgresService.query(dataQuery);
+
+            return ResponseEntity.ok(Map.of(
+                    "data", results,
+                    "page", page,
+                    "size", size,
+                    "count", totalCount
+            ));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Collections.singletonMap("error", "Failed to fetch filtered orders"));
+                    .body(Map.of("error", "Failed to fetch filtered orders", "details", e.getMessage()));
         }
     }
 }
