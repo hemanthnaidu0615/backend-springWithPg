@@ -20,34 +20,49 @@ public class ByItemController {
     @GetMapping("/aww")
     public ResponseEntity<?> getItemSummaryAww(
             @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate) {
-        return fetchItemSummary("get_item_summary_aww", startDate, endDate);
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        return fetchItemSummary("get_item_summary_aww", startDate, endDate, page, size);
     }
 
     @GetMapping("/awd")
     public ResponseEntity<?> getItemSummaryAwd(
             @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate) {
-        return fetchItemSummary("get_item_summary_awd", startDate, endDate);
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        return fetchItemSummary("get_item_summary_awd", startDate, endDate, page, size);
     }
 
-    private ResponseEntity<?> fetchItemSummary(String procedureName, String startDate, String endDate) {
+    private ResponseEntity<?> fetchItemSummary(String procedureName, String startDate, String endDate, int page, int size) {
         try {
-            String query = String.format(
-                    "SELECT * FROM %s('%s'::timestamp, '%s'::timestamp)",
-                    procedureName,
-                    startDate,
-                    endDate
-            );
+            int offset = page * size;
 
-            List<Map<String, Object>> result = postgresService.query(query);
+            // Count total rows
+            String countQuery = String.format("""
+                SELECT COUNT(*) AS total FROM %s('%s'::timestamp, '%s'::timestamp)
+            """, procedureName, startDate, endDate);
+            List<Map<String, Object>> countResult = postgresService.query(countQuery);
+            int totalCount = (!countResult.isEmpty() && countResult.get(0).get("total") != null)
+                    ? ((Number) countResult.get(0).get("total")).intValue()
+                    : 0;
 
-            if (result.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NO_CONTENT)
-                        .body(Map.of("message", "No item summary data found."));
-            }
+            // Paginated query
+            String dataQuery = String.format("""
+                SELECT * FROM %s('%s'::timestamp, '%s'::timestamp)
+                OFFSET %d LIMIT %d
+            """, procedureName, startDate, endDate, offset, size);
+            List<Map<String, Object>> result = postgresService.query(dataQuery);
 
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(Map.of(
+                    "data", result,
+                    "page", page,
+                    "size", size,
+                    "count", totalCount
+            ));
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -59,4 +74,3 @@ public class ByItemController {
         }
     }
 }
-
