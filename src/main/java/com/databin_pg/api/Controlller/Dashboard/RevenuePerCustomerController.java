@@ -7,38 +7,55 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
 import java.util.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 @RestController
 @RequestMapping("/api/revenue")
 @CrossOrigin(origins = "*")
+@Tag(name = "Dashboard - Revenue Per Customer", description = "APIs for Revenue Analytics by Customer")
 public class RevenuePerCustomerController {
 
     @Autowired
     private PostgresService postgresService;
 
-    // 📌 API: Get Top 7 Customers by Revenue (using stored procedure)
+    @Operation(
+            summary = "Get Top 7 Customers by Revenue",
+            description = "Fetches the top 7 customers based on total revenue within the specified date range, optionally filtered by enterprise key."
+        )
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved top customers"),
+            @ApiResponse(responseCode = "500", description = "Failed to fetch top customers by revenue")
+        })
     @GetMapping("/top-customers")
     public ResponseEntity<?> getTopCustomersByRevenue(
-            @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {  // Added enterpriseKey parameter
+    		 @Parameter(description = "Start date in YYYY-MM-DD format", required = true)
+             @RequestParam(name = "startDate") String startDate,
+
+             @Parameter(description = "End date in YYYY-MM-DD format", required = true)
+             @RequestParam(name = "endDate") String endDate,
+
+             @Parameter(description = "Optional enterprise key for filtering results 'AWW' or 'AWD'")
+             @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {  
         try {
-            // Format the startDate and endDate to ensure correct format (if necessary)
+            
             String formattedStartDate = startDate.length() > 10 ? startDate.substring(0, 10) : startDate;
             String formattedEndDate = endDate.length() > 10 ? endDate.substring(0, 10) : endDate;
 
-            // Construct the query, passing NULL if enterpriseKey is not provided
+            
             String query = String.format("""
                 SELECT * FROM get_top_customers_by_revenue('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
             """, formattedStartDate, formattedEndDate, 
                     enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey));
 
-            // Execute the query
             List<Map<String, Object>> data = postgresService.query(query);
 
             List<Map<String, Object>> topCustomers = new ArrayList<>();
 
-            // Transform result data into the expected format
             for (Map<String, Object> row : data) {
                 String customerId = Objects.toString(row.get("customer_id"), "N/A");
                 String customerName = Objects.toString(row.get("customer_name"), "N/A");
@@ -59,7 +76,6 @@ public class RevenuePerCustomerController {
         }
     }
 
-    // 🔹 Helper Method: Convert Object to Double
     private double parseDouble(Object obj) {
         if (obj == null) return 0.0;
         if (obj instanceof Number) return ((Number) obj).doubleValue();

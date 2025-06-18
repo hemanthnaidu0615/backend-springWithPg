@@ -6,36 +6,48 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
-import java.math.BigDecimal;
 import java.util.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 @RestController
 @RequestMapping("/api/sales-revenue")
 @CrossOrigin(origins = "*")
+@Tag(name = "Dashboard - Sales & Revenue", description = "APIs for Sales Data, Revenue Trends, and Forecasting")
 public class SalesAndRevenueController {
 
     @Autowired
     private PostgresService postgresService;
 
-    // 📌 API: Get Total Sales Data (with date filter and enterprise_key)
+    @Operation(
+            summary = "Get Total Sales Data",
+            description = "Returns the total sales grouped by month within a date range and optional enterprise key."
+        )
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved sales data"),
+            @ApiResponse(responseCode = "500", description = "Failed to fetch total sales data")
+        })    
     @GetMapping("/sales-data")
     public ResponseEntity<?> getSalesData(
-            @RequestParam(name= "startDate") String startDate,
-            @RequestParam(name= "endDate") String endDate,
-            @RequestParam(name= "enterpriseKey", required=false) String enterpriseKey) {  
+    		 @Parameter(description = "Start date in YYYY-MM-DD format", required = true)
+             @RequestParam(name = "startDate") String startDate,
+
+             @Parameter(description = "End date in YYYY-MM-DD format", required = true)
+             @RequestParam(name = "endDate") String endDate,
+
+             @Parameter(description = "Optional enterprise key for filtering results 'AWW' or 'AWD'")
+             @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {  
         try {
         	String query = String.format("""
                     SELECT * FROM get_total_sales('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
                 """, startDate, endDate,
                     enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey));
 
-            // Log the generated query
-           // System.out.println("Executing Query: " + query);  // Debug log
-
             List<Map<String, Object>> data = postgresService.query(query);
-
-            // Log the returned data
-           // System.out.println("Returned Data: " + data);  // Debug log
 
             List<Map<String, Object>> salesData = new ArrayList<>();
 
@@ -64,12 +76,24 @@ public class SalesAndRevenueController {
     }
 
 
-    // 📌 API: Get Revenue Trends Over Time (with date filter and enterprise_key)
+    @Operation(
+            summary = "Get Revenue Trends",
+            description = "Returns revenue trends grouped by month, filtered by date range and optional enterprise key."
+        )
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved revenue trends"),
+            @ApiResponse(responseCode = "500", description = "Failed to fetch revenue trends")
+        })
     @GetMapping("/revenue-trends")
     public ResponseEntity<?> getRevenueTrends(
-            @RequestParam(name= "startDate") String startDate,
-            @RequestParam(name= "endDate") String endDate,
-            @RequestParam(name= "enterpriseKey", required=false) String enterpriseKey) {  // Added enterpriseKey
+    		@Parameter(description = "Start date in YYYY-MM-DD format", required = true)
+            @RequestParam(name = "startDate") String startDate,
+
+            @Parameter(description = "End date in YYYY-MM-DD format", required = true)
+            @RequestParam(name = "endDate") String endDate,
+
+            @Parameter(description = "Optional enterprise key for filtering results 'AWW' or 'AWD'")
+            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {  // Added enterpriseKey
         try {
         	String query = String.format("""
                     SELECT * FROM get_revenue_trends('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
@@ -104,12 +128,24 @@ public class SalesAndRevenueController {
         }
     }
 
-    // 📌 API: Get Forecasted Sales (with date filter and enterprise_key)
+    @Operation(
+            summary = "Get Forecasted Sales",
+            description = "Returns forecasted monthly sales for a given date range and optional enterprise key."
+        )
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved forecasted sales"),
+            @ApiResponse(responseCode = "500", description = "Failed to fetch forecasted sales")
+        })
     @GetMapping("/forecasted-sales")
     public ResponseEntity<?> getForecastedSales(
-            @RequestParam(name= "startDate") String startDate,
-            @RequestParam(name= "endDate") String endDate,
-            @RequestParam(name= "enterpriseKey", required=false) String enterpriseKey) {  // Added enterpriseKey
+    		@Parameter(description = "Start date in YYYY-MM-DD format", required = true)
+            @RequestParam(name = "startDate") String startDate,
+
+            @Parameter(description = "End date in YYYY-MM-DD format", required = true)
+            @RequestParam(name = "endDate") String endDate,
+
+            @Parameter(description = "Optional enterprise key for filtering results 'AWW' or 'AWD'")
+            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {  // Added enterpriseKey
         try {
         	String query = String.format("""
                     SELECT * FROM get_forecasted_sales('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
@@ -143,11 +179,5 @@ public class SalesAndRevenueController {
         }
     }
 
-    // Helper method to parse BigDecimal to double
-    private double parseDouble(Object value) {
-        if (value instanceof BigDecimal) {
-            return ((BigDecimal) value).doubleValue();
-        }
-        return 0.0;
-    }
+   
 }

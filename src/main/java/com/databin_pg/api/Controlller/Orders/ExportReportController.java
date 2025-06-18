@@ -7,28 +7,44 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.io.ByteArrayOutputStream;
 import java.util.*;
 
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
+@Tag(name = "Orders - Reports", description = "APIs for exporting order reports and Excel downloads")
 public class ExportReportController {
 
     @Autowired
     private PostgresService postgresService;
 
+    @Operation(
+        summary = "Export filtered orders to Excel",
+        description = "Exports orders based on optional filters (status, type, carrier, etc.) and returns an Excel file."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Excel file generated successfully"),
+        @ApiResponse(responseCode = "204", description = "No matching orders found"),
+        @ApiResponse(responseCode = "500", description = "Failed to generate Excel report")
+    })
     @GetMapping("/orders/excel")
     public ResponseEntity<byte[]> exportOrdersToExcel(
-            @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "status", required = false) String status,
-            @RequestParam(name = "orderType", required = false) String orderType,
-            @RequestParam(name = "paymentMethod", required = false) String paymentMethod,
-            @RequestParam(name = "carrier", required = false) String carrier,
-            @RequestParam(name = "searchCustomer", required = false) String searchCustomer,
-            @RequestParam(name = "searchOrderId", required = false) String searchOrderId,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey
+            @Parameter(description = "Start date (YYYY-MM-DD format)") @RequestParam(name = "startDate") String startDate,
+            @Parameter(description = "End date (YYYY-MM-DD format)") @RequestParam(name = "endDate") String endDate,
+            @Parameter(description = "Order status filter") @RequestParam(name = "status", required = false) String status,
+            @Parameter(description = "Order type filter") @RequestParam(name = "orderType", required = false) String orderType,
+            @Parameter(description = "Payment method filter") @RequestParam(name = "paymentMethod", required = false) String paymentMethod,
+            @Parameter(description = "Carrier filter") @RequestParam(name = "carrier", required = false) String carrier,
+            @Parameter(description = "Customer name filter") @RequestParam(name = "searchCustomer", required = false) String searchCustomer,
+            @Parameter(description = "Order ID search filter") @RequestParam(name = "searchOrderId", required = false) String searchOrderId,
+            @Parameter(description = "Enterprise key filter") @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey
     ) {
         try {
             // Construct the SQL query using the stored procedure
@@ -89,8 +105,7 @@ public class ExportReportController {
             return new ResponseEntity<>(outputStream.toByteArray(), headers, HttpStatus.OK);
 
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 }

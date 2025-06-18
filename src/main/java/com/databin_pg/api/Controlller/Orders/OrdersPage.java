@@ -6,29 +6,64 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
 import java.util.*;
 
 @RestController
 @RequestMapping("/api/orders")
 @CrossOrigin(origins = "*")
+@Tag(name = "Orders - Filtered", description = "APIs for fetching filtered and paginated orders")
 public class OrdersPage {
 
     @Autowired
     private PostgresService postgresService;
 
-    // 📌 API: Get Orders with all filters including enterpriseKey + pagination
+    @Operation(
+        summary = "Get filtered orders with pagination",
+        description = "Fetches orders filtered by date range, status, order type, payment method, carrier, customer search, order ID search, and enterprise key. Supports pagination."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Filtered orders retrieved successfully"),
+        @ApiResponse(responseCode = "500", description = "Internal server error while fetching filtered orders")
+    })
     @GetMapping("/filtered")
     public ResponseEntity<?> getFilteredOrders(
+            @Parameter(description = "Start date for filtering orders (format: yyyy-MM-dd)", required = true)
             @RequestParam(name = "startDate") String startDate,
+
+            @Parameter(description = "End date for filtering orders (format: yyyy-MM-dd)", required = true)
             @RequestParam(name = "endDate") String endDate,
+
+            @Parameter(description = "Order status filter (optional)")
             @RequestParam(name = "status", required = false) String status,
+
+            @Parameter(description = "Order type filter (optional)")
             @RequestParam(name = "orderType", required = false) String orderType,
+
+            @Parameter(description = "Payment method filter (optional)")
             @RequestParam(name = "paymentMethod", required = false) String paymentMethod,
+
+            @Parameter(description = "Carrier filter (optional)")
             @RequestParam(name = "carrier", required = false) String carrier,
+
+            @Parameter(description = "Customer name search filter (optional)")
             @RequestParam(name = "searchCustomer", required = false) String searchCustomer,
+
+            @Parameter(description = "Order ID search filter (optional)")
             @RequestParam(name = "searchOrderId", required = false) String searchOrderId,
+
+            @Parameter(description = "Enterprise key filter (optional)")
             @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey,
+
+            @Parameter(description = "Page number for pagination (default 0)")
             @RequestParam(defaultValue = "0") int page,
+
+            @Parameter(description = "Page size for pagination (default 10)")
             @RequestParam(defaultValue = "10") int size
     ) {
         try {

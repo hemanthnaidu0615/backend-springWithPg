@@ -7,21 +7,40 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
 import java.util.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 @RestController
 @RequestMapping("/api/top-sellers")
 @CrossOrigin(origins = "*")
+@Tag(name = "Dashboard - Top Selling Products", description = "APIs for retrieving top selling products by quantity")
 public class TopSellingProductsController {
 
     @Autowired
     private PostgresService postgresService;
 
-    // ✅ API: Get Top 5 Selling Products using PostgreSQL stored procedure
+    @Operation(
+            summary = "Get top 5 selling products",
+            description = "Retrieves the top 5 selling products within a given date range. Optional filtering by enterprise key such as 'AWW' or 'AWD'."
+        )
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Top selling products fetched successfully"),
+            @ApiResponse(responseCode = "500", description = "Failed to fetch top selling products")
+        })
     @GetMapping("/top-products")
     public ResponseEntity<?> getTopSellingProducts(
+    		@Parameter(description = "Start date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "startDate") String startDate,
+
+            @Parameter(description = "End date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {  // Accept enterpriseKey as a parameter
+
+            @Parameter(description = "Optional enterprise key for filtering results 'AWW' or 'AWD'")
+            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {  
 
         try {
             // Include enterpriseKey in the query

@@ -16,19 +16,40 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.databin_pg.api.Service.PostgresService;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
+
 @RestController
 @RequestMapping("/api/fulfillment-efficiency")
 @CrossOrigin(origins = "*")
+@Tag(name = "Dashboard- Fulfillment Efficiency Tracker", description = "APIs for Fulfillment Efficiency Tracker")
 public class FulfillmentEfficiencyTrackerController {
 
     @Autowired
     private PostgresService postgresService;
 
+    @Operation(
+            summary = "Get fulfillment summary",
+            description = "Fetches a date-wise and category-wise summary of fulfillment events between the given date range. Optional filtering by enterpriseKey."
+        )
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved fulfillment summary"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+        })
     @GetMapping("/summary")
     public ResponseEntity<?> getFulfillmentSummary(
+    		@Parameter(description = "Start date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "startDate") String startDate,
+
+            @Parameter(description = "End date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) { // Added enterpriseKey parameter
+
+            @Parameter(description = "Optional enterprise key for filtering 'AWW' or 'AWD' ")
+            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey)  { // Added enterpriseKey parameter
 
         try {
             // Ensure only YYYY-MM-DD is passed (strip time if present)

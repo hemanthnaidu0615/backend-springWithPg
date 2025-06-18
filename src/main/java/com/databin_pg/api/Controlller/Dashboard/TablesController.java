@@ -1,30 +1,52 @@
 package com.databin_pg.api.Controlller.Dashboard;
 
 
-import com.databin_pg.api.Service.PostgresService; // Assume this is the service used to query the Postgres DB
+import com.databin_pg.api.Service.PostgresService; 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
 import java.util.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 @RestController
 @RequestMapping("/api/orders")
 @CrossOrigin(origins = "*")
+@Tag(name = "Dashboard - Recent Orders", description = "APIs for retrieving paginated recent orders with optional enterprise filtering")
 public class TablesController {
 
     @Autowired
     private PostgresService postgresService;
-
-    // 📌 Optimized API: Get Recent Orders from PostgreSQL (using stored procedure)
+    @Operation(
+            summary = "Get recent orders",
+            description = "Retrieves recent orders between the specified start and end dates. Supports pagination and optional enterprise filtering (e.g., 'AWW' or 'AWD')."
+        )
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Recent orders retrieved successfully"),
+            @ApiResponse(responseCode = "500", description = "Failed to fetch recent orders")
+        })
     @GetMapping("/recent-orders")
     public ResponseEntity<?> getRecentOrders(
-            @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+    		  @Parameter(description = "Start date in YYYY-MM-DD format", required = true)
+              @RequestParam(name = "startDate") String startDate,
+
+              @Parameter(description = "End date in YYYY-MM-DD format", required = true)
+              @RequestParam(name = "endDate") String endDate,
+
+              @Parameter(description = "Optional enterprise key for filtering results 'AWW' or 'AWD'")
+              @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey,
+
+              @Parameter(description = "Page number (zero-based)", example = "0")
+              @RequestParam(defaultValue = "0") int page,
+
+              @Parameter(description = "Number of records per page", example = "10")
+              @RequestParam(defaultValue = "10") int size) {
 
         try {
             String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";

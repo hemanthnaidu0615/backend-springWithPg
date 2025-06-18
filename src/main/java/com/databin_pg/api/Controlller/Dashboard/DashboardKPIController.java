@@ -8,21 +8,34 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.Operation;
 
 @RestController
 @RequestMapping("/api/dashboard-kpi")
 @CrossOrigin(origins = "*")
+@Tag(name = "Dashboard- KPI", description = "APIs for Dashboard kpis")
 public class DashboardKPIController {
 
     @Autowired
     private PostgresService postgresService;
 
-    // 📌 API: Get Total Orders Count (with date filter) using stored procedure
- // 📌 API: Get Total Orders Count (with date filter)
+    @Operation(summary = "Get total orders", description = "Returns the total number of orders between two dates, optionally filtered by enterpriseKey")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved total orders"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    
     @GetMapping("/total-orders")
     public ResponseEntity<?> getTotalOrders(
+    		@Parameter(description = "Start date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "startDate") String startDate,
+            @Parameter(description = "End date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "endDate") String endDate,
+            @Parameter(description = "Optional enterprise key filter 'AWW' or 'AWD' ")
             @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
         try {
         	String query = String.format("""
@@ -43,12 +56,19 @@ public class DashboardKPIController {
     }
 
 
-    // 📌 API: Get Shipment Status Percentages (with date filter)
+    @Operation(summary = "Get shipment status percentage", description = "Returns shipment delay percentage and in-transit order count")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved shipment status data"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     @GetMapping("/shipment-status-percentage")
     public ResponseEntity<?> getShipmentStatusPercentage(
+    		@Parameter(description = "Start date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "startDate") String startDate,
+            @Parameter(description = "End date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
+            @Parameter(description = "Optional enterprise key filter 'AWW' or 'AWD' ")
+            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {
         try {
         	String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
         	String query = String.format("""
@@ -81,12 +101,19 @@ public class DashboardKPIController {
     }
 
 
-    // 📌 API: Get Fulfillment Rate (with date filter)
+    @Operation(summary = "Get fulfillment rate", description = "Returns the fulfillment rate of orders in percentage")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved fulfillment rate"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     @GetMapping("/fulfillment-rate")
     public ResponseEntity<?> getFulfillmentRate(
-            @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
+    		 @Parameter(description = "Start date in YYYY-MM-DD format", required = true)
+             @RequestParam(name = "startDate") String startDate,
+             @Parameter(description = "End date in YYYY-MM-DD format", required = true)
+             @RequestParam(name = "endDate") String endDate,
+             @Parameter(description = "Optional enterprise key filter 'AWW' or 'AWD'")
+             @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {
         try {
         	String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
         	String query = String.format("""
@@ -108,31 +135,4 @@ public class DashboardKPIController {
                     .body(Map.of("error", "Failed to fetch fulfillment rate"));
         }
     }
-
-
-    // 📌 API: Get Out-of-Stock Product Count (no date filter)
-//    @GetMapping("/out-of-stock")
-//    public ResponseEntity<?> getOutOfStockCount(
-//            @RequestParam(name = "startDate") String startDate,
-//            @RequestParam(name = "endDate") String endDate,
-//            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
-//        try {
-//        	String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
-//        	String query = String.format("""
-//        	    SELECT get_out_of_stock_count('%s', '%s', %s) AS out_of_stock_count
-//        	""", startDate, endDate, formattedKey);
-//
-//
-//            List<Map<String, Object>> data = postgresService.query(query);
-//            int count = data.isEmpty() ? 0 : ((Number) data.get(0).get("out_of_stock_count")).intValue();
-//
-//            return ResponseEntity.ok(Map.of("out_of_stock_count", count));
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(Map.of("error", "Failed to fetch out-of-stock count", "message", e.getMessage()));
-//        }
-//    }
-
-
-
 }

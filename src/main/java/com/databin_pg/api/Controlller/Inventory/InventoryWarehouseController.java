@@ -6,22 +6,33 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.databin_pg.api.Service.PostgresService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/inventory")
 @CrossOrigin(origins = "*")
+@Tag(name = "Inventory - Warehouse", description = "APIs for region-wise inventory and warehouse-related insights")
 public class InventoryWarehouseController {
 
     @Autowired
     private PostgresService postgresService;
 
+    @Operation(
+        summary = "Get region-wise inventory distribution",
+        description = "Returns the inventory distribution grouped by regions based on the specified date range."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved region-wise inventory distribution"),
+        @ApiResponse(responseCode = "400", description = "Missing or invalid request parameters"),
+        @ApiResponse(responseCode = "500", description = "Server error while fetching region-wise inventory distribution")
+    })
     @GetMapping("/region-distribution")
     public ResponseEntity<?> getRegionInventoryDistribution(
             @RequestParam(name = "startDate") String startDate,

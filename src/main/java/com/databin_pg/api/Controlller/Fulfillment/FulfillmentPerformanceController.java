@@ -9,23 +9,46 @@ import com.databin_pg.api.Service.PostgresService;
 
 import java.util.List;
 import java.util.Map;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 @RestController
 @RequestMapping("/api/fulfillment")
 @CrossOrigin(origins = "*")
+@Tag(name = "Fulfillment - Center Performance", description = "Provides performance summary of fulfillment centers with pagination support")
 public class FulfillmentPerformanceController {
 
     @Autowired
     private PostgresService postgresService;
 
-    // 📌 API: Get Fulfillment Center Performance Summary (with pagination)
+    @Operation(
+            summary = "Get Fulfillment Center Performance Summary",
+            description = "Retrieves performance data of fulfillment centers between given dates. Supports pagination and filtering by enterprise key."
+        )
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Fulfillment center performance data retrieved successfully"),
+            @ApiResponse(responseCode = "500", description = "Failed to fetch fulfillment center performance data")
+        })
     @GetMapping("/fulfillment-performance")
     public ResponseEntity<?> getFulfillmentCenterPerformance(
+    		@Parameter(description = "Start date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "startDate") String startDate,
+
+            @Parameter(description = "End date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "endDate") String endDate,
+
+            @Parameter(description = "Optional enterprise key for filtering data, e.g., 'AWW' or 'AWD'")
             @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey,
+
+            @Parameter(description = "Page number for pagination (0-indexed)", example = "0")
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+
+            @Parameter(description = "Number of records per page", example = "10")
+            @RequestParam(defaultValue = "10") int size){
 
         try {
             String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank())

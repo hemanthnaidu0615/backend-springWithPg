@@ -1,26 +1,48 @@
 package com.databin_pg.api.Controlller.Dashboard;
 
 import com.databin_pg.api.Service.PostgresService;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
 import java.util.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
 
 @RestController
 @RequestMapping("/api/order-trends-by-category")
 @CrossOrigin(origins = "*")
+@Tag(name = "Dashboard- Order Trends by Category", description = "APIs for Order Trends by Category")
 public class OrderTrendsByProdCatController {
 
     @Autowired
     private PostgresService postgresService;
 
+    @Operation(
+            summary = "Get order trends by category",
+            description = "Returns monthly sales trends grouped by product category, filtered by date range and optionally by enterprise key"
+        )
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved order trends"),
+            @ApiResponse(responseCode = "500", description = "Failed to fetch order trends data")
+        })
     @GetMapping
     public ResponseEntity<?> getOrderTrendsByCategory(
+    		@Parameter(description = "Start date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "startDate") String startDate,
+
+            @Parameter(description = "End date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
+
+            @Parameter(description = "Optional enterprise key for filtering 'AWW' or 'AWD' ")
+            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {
         try {
             // Ensure startDate and endDate are formatted properly
             String formattedStartDate = startDate.length() > 10 ? startDate.substring(0, 10) : startDate;
