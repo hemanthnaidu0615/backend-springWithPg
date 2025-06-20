@@ -48,11 +48,11 @@ public class TablesController {
             int size = Integer.parseInt(allParams.getOrDefault("size", "10"));
             int offset = page * size;
 
-            String sortField = allParams.getOrDefault("sortField", "order_date");
+            String sortField = allParams.getOrDefault("sortField", "order_id");
             String sortOrder = allParams.getOrDefault("sortOrder", "desc");
 
             String enterpriseKey = allParams.get("enterpriseKey");
-            String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey.replace("'", "''") + "'";
+            String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? null : "'" + enterpriseKey.replace("'", "''") + "'";
 
             // Allowed fields for filtering
             List<String> allowedFields = List.of("order_id", "product_name", "category_name", "unit_price", "order_type", "shipment_status");
@@ -86,11 +86,10 @@ public class TablesController {
                 "category_name", "category_name",
                 "unit_price", "unit_price",
                 "order_type", "order_type",
-                "shipment_status", "shipment_status",
-                "order_date", "order_date"
+                "shipment_status", "shipment_status"
             );
 
-            String sortColumn = allowedSortFields.getOrDefault(sortField, "order_date");
+            String sortColumn = allowedSortFields.getOrDefault(sortField, "order_id");
             String sortDirection = sortOrder.equalsIgnoreCase("desc") ? "DESC" : "ASC";
 
             // COUNT query
