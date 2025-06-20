@@ -32,54 +32,105 @@ public class TablesController {
             @ApiResponse(responseCode = "500", description = "Failed to fetch recent orders")
         })
     @GetMapping("/recent-orders")
-    public ResponseEntity<?> getRecentOrders(
-    		  @Parameter(description = "Start date in YYYY-MM-DD format", required = true)
-              @RequestParam(name = "startDate") String startDate,
-
-              @Parameter(description = "End date in YYYY-MM-DD format", required = true)
-              @RequestParam(name = "endDate") String endDate,
-
-              @Parameter(description = "Optional enterprise key for filtering results 'AWW' or 'AWD'")
-              @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey,
-
-              @Parameter(description = "Page number (zero-based)", example = "0")
-              @RequestParam(defaultValue = "0") int page,
-
-              @Parameter(description = "Number of records per page", example = "10")
-              @RequestParam(defaultValue = "10") int size) {
-
+    public ResponseEntity<?> getRecentOrders(@RequestParam Map<String, String> allParams) {
         try {
-            String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
-            int offset = page * size;
-
-            // Count query
-            String countQuery = String.format("""
-                SELECT COUNT(*) as total FROM get_recent_orders('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
-            """, startDate, endDate, formattedKey);
-
-            List<Map<String, Object>> countResult = postgresService.query(countQuery);
-            int totalCount = 0;
-            if (!countResult.isEmpty() && countResult.get(0).get("total") != null) {
-                totalCount = ((Number) countResult.get(0).get("total")).intValue();
+            // Required params
+            String startDate = allParams.get("startDate");
+            String endDate = allParams.get("endDate");
+            if (startDate == null || endDate == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Missing required parameters: startDate or endDate"));
             }
 
-            // Paginated data query
-            String dataQuery = String.format("""
-                SELECT * FROM get_recent_orders('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
-                OFFSET %d LIMIT %d
-            """, startDate, endDate, formattedKey, offset, size);
+            String formattedStartDate = startDate.length() > 10 ? startDate.substring(0, 10) : startDate;
+            String formattedEndDate = endDate.length() > 10 ? endDate.substring(0, 10) : endDate;
 
-            List<Map<String, Object>> data = postgresService.query(dataQuery);
+            int page = Integer.parseInt(allParams.getOrDefault("page", "0"));
+            int size = Integer.parseInt(allParams.getOrDefault("size", "10"));
+            int offset = page * size;
+
+            String sortField = allParams.getOrDefault("sortField", "order_date");
+            String sortOrder = allParams.getOrDefault("sortOrder", "desc");
+
+            String enterpriseKey = allParams.get("enterpriseKey");
+            String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey.replace("'", "''") + "'";
+
+            // Allowed fields for filtering
+            List<String> allowedFields = List.of("order_id", "product_name", "category_name", "unit_price", "order_type", "shipment_status");
+
+            StringBuilder whereClause = new StringBuilder("WHERE 1=1");
+
+            for (String field : allowedFields) {
+                String value = allParams.get(field + ".value");
+                String matchMode = allParams.getOrDefault(field + ".matchMode", "contains");
+
+                if (value != null && !value.trim().isEmpty()) {
+                    value = value.toLowerCase().replace("'", "''");
+                    String sqlCondition;
+
+                    switch (matchMode) {
+                        case "startsWith" -> sqlCondition = "LOWER(%s::text) LIKE '%s%%'".formatted(field, value);
+                        case "endsWith" -> sqlCondition = "LOWER(%s::text) LIKE '%%%s'".formatted(field, value);
+                        case "notContains" -> sqlCondition = "LOWER(%s::text) NOT LIKE '%%%s%%'".formatted(field, value);
+                        case "equals" -> sqlCondition = "LOWER(%s::text) = '%s'".formatted(field, value);
+                        default -> sqlCondition = "LOWER(%s::text) LIKE '%%%s%%'".formatted(field, value);
+                    }
+
+                    whereClause.append(" AND ").append(sqlCondition);
+                }
+            }
+
+            // Sortable fields
+            Map<String, String> allowedSortFields = Map.of(
+                "order_id", "order_id",
+                "product_name", "product_name",
+                "category_name", "category_name",
+                "unit_price", "unit_price",
+                "order_type", "order_type",
+                "shipment_status", "shipment_status",
+                "order_date", "order_date"
+            );
+
+            String sortColumn = allowedSortFields.getOrDefault(sortField, "order_date");
+            String sortDirection = sortOrder.equalsIgnoreCase("desc") ? "DESC" : "ASC";
+
+            // COUNT query
+            String countQuery = """
+                SELECT COUNT(*) AS total FROM (
+                    SELECT * FROM get_recent_orders('%s'::timestamp, '%s'::timestamp, %s)
+                ) AS result %s
+            """.formatted(formattedStartDate, formattedEndDate, formattedKey, whereClause);
+
+            int totalCount = ((Number) postgresService.query(countQuery).get(0).get("total")).intValue();
+
+            // DATA query
+            String dataQuery = """
+                SELECT * FROM (
+                    SELECT * FROM get_recent_orders('%s'::timestamp, '%s'::timestamp, %s)
+                ) AS result
+                %s ORDER BY %s %s OFFSET %d LIMIT %d
+            """.formatted(
+                formattedStartDate,
+                formattedEndDate,
+                formattedKey,
+                whereClause,
+                sortColumn,
+                sortDirection,
+                offset,
+                size
+            );
+
+            List<Map<String, Object>> rows = postgresService.query(dataQuery);
 
             return ResponseEntity.ok(Map.of(
-                    "data", data,
-                    "page", page,
-                    "size", size,
-                    "count", totalCount));
-
+                "data", rows,
+                "page", page,
+                "size", size,
+                "count", totalCount
+            ));
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to fetch recent orders", "details", e.getMessage()));
+                .body(Map.of("error", "Failed to fetch recent orders", "details", e.getMessage()));
         }
     }
 
