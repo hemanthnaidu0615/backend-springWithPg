@@ -77,7 +77,7 @@ public class ByItemController {
                 if (value != null && !value.isBlank()) {
                     value = value.toLowerCase().replace("'", "''");
                     String condition;
-                    if (field.equals("product_id") || field.equals("total_quantity") || field.equals("total_amount")) {
+                    if (field.equals("total_quantity") || field.equals("total_amount")) {
                         condition = switch (matchMode) {
                             case "equals" -> "%s = %s".formatted(field, value);
                             case "greaterThan" -> "%s > %s".formatted(field, value);
@@ -85,7 +85,13 @@ public class ByItemController {
                             default -> "%s::text LIKE '%%%s%%'".formatted(field, value);
                         };
                     } else {
-                        condition = "LOWER(%s::text) LIKE '%%%s%%'".formatted(field, value);
+                        condition = switch (matchMode) {
+                            case "startsWith" -> "LOWER(%s::text) LIKE '%s%%'".formatted(field, value);
+                            case "endsWith" -> "LOWER(%s::text) LIKE '%%%s'".formatted(field, value);
+                            case "notContains" -> "LOWER(%s::text) NOT LIKE '%%%s%%'".formatted(field, value);
+                            case "equals" -> "LOWER(%s::text) = '%s'".formatted(field, value);
+                            default -> "LOWER(%s::text) LIKE '%%%s%%'".formatted(field, value);
+                        };
                     }
                     whereClause.append(" AND ").append(condition);
                 }
