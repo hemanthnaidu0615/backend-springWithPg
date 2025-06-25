@@ -23,35 +23,95 @@ public class TopSellingProductsController {
     @Autowired
     private PostgresService postgresService;
 
-    @Operation(
-            summary = "Get top 5 selling products",
-            description = "Retrieves the top 5 selling products within a given date range. Optional filtering by enterprise key such as 'AWW' or 'AWD'."
-        )
-        @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Top selling products fetched successfully"),
-            @ApiResponse(responseCode = "500", description = "Failed to fetch top selling products")
-        })
     @GetMapping("/top-products")
+    @Operation(
+        summary = "Get top selling products with pagination, sorting, and search",
+        description = "Retrieves the top selling products within a date range. Supports optional filtering by enterprise key, pagination, sorting, and search."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Top selling products fetched successfully"),
+        @ApiResponse(responseCode = "500", description = "Failed to fetch top selling products")
+    })
     public ResponseEntity<?> getTopSellingProducts(
-    		@Parameter(description = "Start date in YYYY-MM-DD format", required = true)
-            @RequestParam(name = "startDate") String startDate,
+        @Parameter(description = "Start date in YYYY-MM-DD format", required = true)
+        @RequestParam(name = "startDate") String startDate,
 
-            @Parameter(description = "End date in YYYY-MM-DD format", required = true)
-            @RequestParam(name = "endDate") String endDate,
+        @Parameter(description = "End date in YYYY-MM-DD format", required = true)
+        @RequestParam(name = "endDate") String endDate,
 
-            @Parameter(description = "Optional enterprise key for filtering results 'AWW' or 'AWD'")
-            @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {  
+        @Parameter(description = "Optional enterprise key (e.g., AWW, AWD)")
+        @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey,
 
+        @Parameter(description = "Page number (default 0)")
+        @RequestParam(name = "page", required = false, defaultValue = "0") int page,
+
+        @Parameter(description = "Page size (default 10)")
+        @RequestParam(name = "size", required = false, defaultValue = "10") int size,
+
+        @Parameter(description = "Field to sort by (e.g., quantity, percentage, price)")
+        @RequestParam(name = "sortField", required = false, defaultValue = "quantity") String sortField,
+
+        @Parameter(description = "Sort order (asc or desc)")
+        @RequestParam(name = "sortOrder", required = false, defaultValue = "desc") String sortOrder,
+
+        @Parameter(description = "Search keyword for product name or description")
+        @RequestParam(name = "search", required = false) String search
+    ) {
         try {
-            // Include enterpriseKey in the query
-        	String query = String.format(
-        		    "SELECT * FROM get_top_selling_products(TIMESTAMP '%s', TIMESTAMP '%s', %s)", 
-        		    startDate, endDate,
-        		    enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey)
-        		);
+            int offset = page * size;
 
+            // Sanitize and map sort field
+            Map<String, String> allowedSortFields = Map.of(
+                "product_name", "product_name",
+                "quantity", "total_quantity",
+                "percentage", "percentage",
+                "price", "price"
+            );
+            String sortColumn = allowedSortFields.getOrDefault(sortField, "total_quantity");
+            String sortDirection = sortOrder.equalsIgnoreCase("asc") ? "ASC" : "DESC";
 
-            List<Map<String, Object>> data = postgresService.query(query);
+            String formattedKey = enterpriseKey == null ? "NULL" : "'" + enterpriseKey.replace("'", "''") + "'";
+            String filterClause = "";
+
+            if (search != null && !search.trim().isEmpty()) {
+                String safeSearch = search.toLowerCase().replace("'", "''");
+                filterClause = String.format(
+                    "WHERE LOWER(product_name) LIKE '%%%s%%' OR LOWER(description) LIKE '%%%s%%'",
+                    safeSearch, safeSearch
+                );
+            }
+
+            // Count query
+            String countQuery = String.format(
+                """
+                SELECT COUNT(*) AS total FROM (
+                    SELECT * FROM get_top_selling_products(TIMESTAMP '%s', TIMESTAMP '%s', %s)
+                ) AS result
+                %s
+                """,
+                startDate, endDate, formattedKey,
+                filterClause
+            );
+
+            int totalCount = ((Number) postgresService.query(countQuery).get(0).get("total")).intValue();
+
+            // Data query
+            String dataQuery = String.format(
+                """
+                SELECT * FROM (
+                    SELECT * FROM get_top_selling_products(TIMESTAMP '%s', TIMESTAMP '%s', %s)
+                ) AS result
+                %s
+                ORDER BY %s %s
+                OFFSET %d LIMIT %d
+                """,
+                startDate, endDate, formattedKey,
+                filterClause,
+                sortColumn, sortDirection,
+                offset, size
+            );
+
+            List<Map<String, Object>> data = postgresService.query(dataQuery);
             List<Map<String, Object>> topProducts = new ArrayList<>();
 
             for (Map<String, Object> row : data) {
@@ -70,11 +130,17 @@ public class TopSellingProductsController {
                 ));
             }
 
-            return ResponseEntity.ok(Map.of("top_products", topProducts));
+            return ResponseEntity.ok(Map.of(
+                "data", topProducts,
+                "page", page,
+                "size", size,
+                "count", totalCount
+            ));
 
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to fetch top selling products"));
+                .body(Map.of("error", "Failed to fetch top selling products", "details", e.getMessage()));
         }
     }
 
