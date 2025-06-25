@@ -86,7 +86,7 @@ public class FulfillmentEfficiencyTrackerController {
     	    @ApiResponse(responseCode = "200", description = "Successfully retrieved fulfillment event details"),
     	    @ApiResponse(responseCode = "500", description = "Internal server error while fetching data")
     	})
-    @GetMapping("/details")
+    @GetMapping("/details-grid")
     public ResponseEntity<?> getFulfillmentDetails(
         @RequestParam Map<String, String> allParams
     ) {

@@ -89,51 +89,131 @@ public class ShipmentPerformanceController {
             return 0;
         }
     }
+   
+    @GetMapping("/details-grid")
     @Operation(
-            summary = "Get detailed shipment performance by carrier and method",
-            description = "Returns detailed shipment records filtered by carrier and shipment method within the given date range."
-        )
-        @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Shipment detail data retrieved successfully"),
-            @ApiResponse(responseCode = "500", description = "Failed to fetch shipment detail data")
-        })
-    @GetMapping("/details")
-    public ResponseEntity<?> getShipmentDetails(
-    		 @Parameter(description = "Start date in YYYY-MM-DD format", required = true)
-             @RequestParam(name = "startDate") String startDate,
-
-             @Parameter(description = "End date in YYYY-MM-DD format", required = true)
-             @RequestParam(name = "endDate") String endDate,
-
-             @Parameter(description = "Carrier name to filter the details", required = true)
-             @RequestParam(name = "carrier") String carrier,
-
-             @Parameter(description = "Shipment method (e.g., standard, expedited, same_day)", required = true)
-             @RequestParam(name = "method") String method,
-
-             @Parameter(description = "Optional enterprise key for filtering results 'AWW' or 'AWD'")
-             @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey
-    ) {
+        summary = "Get detailed shipment records",
+        description = "Returns detailed shipment records with pagination, sorting, and filtering by carrier, method, or enterprise key."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Shipment detail data retrieved successfully"),
+        @ApiResponse(responseCode = "500", description = "Failed to fetch shipment detail data")
+    })
+    public ResponseEntity<?> getShipmentDetails(@RequestParam Map<String, String> allParams) {
         try {
-            String query = String.format("""
-                SELECT * FROM get_shipment_performance_details(
-                    '%s'::TIMESTAMP,
-                    '%s'::TIMESTAMP,
-                    '%s',
-                    '%s',
-                    %s
-                )
-            """,
-                startDate, endDate,
-                carrier, method,
-                enterpriseKey == null ? "NULL" : "'" + enterpriseKey + "'"
+            // Required parameters
+            String startDate = allParams.get("startDate");
+            String endDate = allParams.get("endDate");
+            if (startDate == null || endDate == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Missing required parameters: startDate or endDate"));
+            }
+
+            String formattedStartDate = startDate.substring(0, 10);
+            String formattedEndDate = endDate.substring(0, 10);
+
+            // Pagination
+            int page = Integer.parseInt(allParams.getOrDefault("page", "0"));
+            int size = Integer.parseInt(allParams.getOrDefault("size", "10"));
+            int offset = page * size;
+
+            // Sorting
+            String sortField = allParams.getOrDefault("sortField", "shipment_id");
+            String sortOrder = allParams.getOrDefault("sortOrder", "desc");
+
+            // Optional filtering
+            String enterpriseKey = allParams.get("enterpriseKey");
+            String carrier = allParams.get("carrier");
+            String method = allParams.get("method");
+
+            String formattedKey = enterpriseKey == null ? "NULL" : "'" + enterpriseKey.replace("'", "''") + "'";
+            String formattedCarrier = carrier == null ? "NULL" : "'" + carrier.replace("'", "''") + "'";
+            String formattedMethod = method == null ? "NULL" : "'" + method.replace("'", "''") + "'";
+
+            // Filterable fields
+            List<String> allowedFields = List.of(
+                "shipment_id", "order_id", "carrier", "tracking_number", "shipment_status",
+                "shipment_cost", "shipping_method", "estimated_shipment_date", "actual_shipment_date"
             );
 
-            List<Map<String, Object>> details = postgresService.query(query);
-            return ResponseEntity.ok(Map.of("shipment_details", details));
+            // Build WHERE clause for client-side filtering
+            StringBuilder whereClause = new StringBuilder("WHERE 1=1");
+            for (String field : allowedFields) {
+                String value = allParams.get(field + ".value");
+                String matchMode = allParams.getOrDefault(field + ".matchMode", "contains");
+
+                if (value != null && !value.trim().isEmpty()) {
+                    value = value.toLowerCase().replace("'", "''");
+                    String sqlCondition;
+                    switch (matchMode) {
+                        case "startsWith" -> sqlCondition = "LOWER(%s::text) LIKE '%s%%'".formatted(field, value);
+                        case "endsWith" -> sqlCondition = "LOWER(%s::text) LIKE '%%%s'".formatted(field, value);
+                        case "notContains" -> sqlCondition = "LOWER(%s::text) NOT LIKE '%%%s%%'".formatted(field, value);
+                        case "equals" -> sqlCondition = "LOWER(%s::text) = '%s'".formatted(field, value);
+                        default -> sqlCondition = "LOWER(%s::text) LIKE '%%%s%%'".formatted(field, value);
+                    }
+                    whereClause.append(" AND ").append(sqlCondition);
+                }
+            }
+
+            // Safe sorting
+            Map<String, String> allowedSortFields = Map.ofEntries(
+                Map.entry("shipment_id", "shipment_id"),
+                Map.entry("order_id", "order_id"),
+                Map.entry("carrier", "carrier"),
+                Map.entry("tracking_number", "tracking_number"),
+                Map.entry("shipment_status", "shipment_status"),
+                Map.entry("shipment_cost", "shipment_cost"),
+                Map.entry("shipping_method", "shipping_method"),
+                Map.entry("estimated_shipment_date", "estimated_shipment_date"),
+                Map.entry("actual_shipment_date", "actual_shipment_date")
+            );
+
+            String sortColumn = allowedSortFields.getOrDefault(sortField, "shipment_id");
+            String sortDirection = sortOrder.equalsIgnoreCase("desc") ? "DESC" : "ASC";
+
+            // COUNT query
+            String countQuery = """
+                SELECT COUNT(*) AS total FROM (
+                    SELECT * FROM get_shipment_performance_details(
+                        '%s'::timestamp, '%s'::timestamp, %s, %s, %s
+                    )
+                ) AS result %s
+            """.formatted(
+                formattedStartDate, formattedEndDate,
+                formattedCarrier, formattedMethod, formattedKey,
+                whereClause
+            );
+
+            int totalCount = ((Number) postgresService.query(countQuery).get(0).get("total")).intValue();
+
+            // DATA query
+            String dataQuery = """
+                SELECT * FROM (
+                    SELECT * FROM get_shipment_performance_details(
+                        '%s'::timestamp, '%s'::timestamp, %s, %s, %s
+                    )
+                ) AS result
+                %s ORDER BY %s %s OFFSET %d LIMIT %d
+            """.formatted(
+                formattedStartDate, formattedEndDate,
+                formattedCarrier, formattedMethod, formattedKey,
+                whereClause,
+                sortColumn, sortDirection,
+                offset, size
+            );
+
+            List<Map<String, Object>> rows = postgresService.query(dataQuery);
+
+            return ResponseEntity.ok(Map.of(
+                "data", rows,
+                "page", page,
+                "size", size,
+                "count", totalCount
+            ));
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to fetch shipment detail data"));
+                .body(Map.of("error", "Failed to fetch shipment detail data", "details", e.getMessage()));
         }
     }
 
