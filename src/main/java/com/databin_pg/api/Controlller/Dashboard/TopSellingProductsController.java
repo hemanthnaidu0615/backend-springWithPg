@@ -13,7 +13,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-
 @RestController
 @RequestMapping("/api/top-sellers")
 @CrossOrigin(origins = "*")
@@ -25,91 +24,88 @@ public class TopSellingProductsController {
 
     @GetMapping("/top-products")
     @Operation(
-        summary = "Get top selling products with pagination, sorting, and search",
-        description = "Retrieves the top selling products within a date range. Supports optional filtering by enterprise key, pagination, sorting, and search."
+        summary = "Get top selling products with pagination, sorting, and filtering",
+        description = "Retrieves the top selling products within a date range. Supports filtering by fields using match modes, sorting, and pagination."
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Top selling products fetched successfully"),
         @ApiResponse(responseCode = "500", description = "Failed to fetch top selling products")
     })
-    public ResponseEntity<?> getTopSellingProducts(
-        @Parameter(description = "Start date in YYYY-MM-DD format", required = true)
-        @RequestParam(name = "startDate") String startDate,
-
-        @Parameter(description = "End date in YYYY-MM-DD format", required = true)
-        @RequestParam(name = "endDate") String endDate,
-
-        @Parameter(description = "Optional enterprise key (e.g., AWW, AWD)")
-        @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey,
-
-        @Parameter(description = "Page number (default 0)")
-        @RequestParam(name = "page", required = false, defaultValue = "0") int page,
-
-        @Parameter(description = "Page size (default 10)")
-        @RequestParam(name = "size", required = false, defaultValue = "10") int size,
-
-        @Parameter(description = "Field to sort by (e.g., quantity, percentage, price)")
-        @RequestParam(name = "sortField", required = false, defaultValue = "quantity") String sortField,
-
-        @Parameter(description = "Sort order (asc or desc)")
-        @RequestParam(name = "sortOrder", required = false, defaultValue = "desc") String sortOrder,
-
-        @Parameter(description = "Search keyword for product name or description")
-        @RequestParam(name = "search", required = false) String search
-    ) {
+    public ResponseEntity<?> getTopSellingProducts(@RequestParam Map<String, String> allParams) {
         try {
+            // Required date parameters
+            String startDate = allParams.get("startDate");
+            String endDate = allParams.get("endDate");
+
+            if (startDate == null || endDate == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Missing startDate or endDate"));
+            }
+
+            // Optional filters
+            String enterpriseKey = allParams.get("enterpriseKey");
+            String formattedKey = enterpriseKey == null ? "NULL" : "'" + enterpriseKey.replace("'", "''") + "'";
+
+            // Pagination and sorting
+            int page = Integer.parseInt(allParams.getOrDefault("page", "0"));
+            int size = Integer.parseInt(allParams.getOrDefault("size", "10"));
             int offset = page * size;
 
-            // Sanitize and map sort field
+            String sortField = allParams.getOrDefault("sortField", "quantity");
+            String sortOrder = allParams.getOrDefault("sortOrder", "desc");
+
             Map<String, String> allowedSortFields = Map.of(
                 "product_name", "product_name",
                 "quantity", "total_quantity",
                 "percentage", "percentage",
-                "price", "price"
+                "price", "price",
+                "description", "description"
             );
             String sortColumn = allowedSortFields.getOrDefault(sortField, "total_quantity");
             String sortDirection = sortOrder.equalsIgnoreCase("asc") ? "ASC" : "DESC";
 
-            String formattedKey = enterpriseKey == null ? "NULL" : "'" + enterpriseKey.replace("'", "''") + "'";
-            String filterClause = "";
+            // Filterable fields
+            List<String> allowedFields = List.of("product_name", "description");
 
-            if (search != null && !search.trim().isEmpty()) {
-                String safeSearch = search.toLowerCase().replace("'", "''");
-                filterClause = String.format(
-                    "WHERE LOWER(product_name) LIKE '%%%s%%' OR LOWER(description) LIKE '%%%s%%'",
-                    safeSearch, safeSearch
-                );
+            // Build WHERE clause dynamically
+            StringBuilder whereClause = new StringBuilder("WHERE 1=1");
+            for (String field : allowedFields) {
+                String value = allParams.get(field + ".value");
+                String matchMode = allParams.getOrDefault(field + ".matchMode", "contains");
+
+                if (value != null && !value.trim().isEmpty()) {
+                    value = value.toLowerCase().replace("'", "''");
+                    String condition;
+                    switch (matchMode) {
+                        case "startsWith" -> condition = "LOWER(%s::text) LIKE '%s%%'".formatted(field, value);
+                        case "endsWith" -> condition = "LOWER(%s::text) LIKE '%%%s'".formatted(field, value);
+                        case "notContains" -> condition = "LOWER(%s::text) NOT LIKE '%%%s%%'".formatted(field, value);
+                        case "equals" -> condition = "LOWER(%s::text) = '%s'".formatted(field, value);
+                        default -> condition = "LOWER(%s::text) LIKE '%%%s%%'".formatted(field, value);
+                    }
+                    whereClause.append(" AND ").append(condition);
+                }
             }
 
             // Count query
-            String countQuery = String.format(
-                """
+            String countQuery = String.format("""
                 SELECT COUNT(*) AS total FROM (
-                    SELECT * FROM get_top_selling_products(TIMESTAMP '%s', TIMESTAMP '%s', %s)
+                    SELECT * FROM get_top_selling_products('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
                 ) AS result
                 %s
-                """,
-                startDate, endDate, formattedKey,
-                filterClause
-            );
+                """, startDate, endDate, formattedKey, whereClause);
 
             int totalCount = ((Number) postgresService.query(countQuery).get(0).get("total")).intValue();
 
             // Data query
-            String dataQuery = String.format(
-                """
+            String dataQuery = String.format("""
                 SELECT * FROM (
-                    SELECT * FROM get_top_selling_products(TIMESTAMP '%s', TIMESTAMP '%s', %s)
+                    SELECT * FROM get_top_selling_products('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
                 ) AS result
                 %s
                 ORDER BY %s %s
                 OFFSET %d LIMIT %d
-                """,
-                startDate, endDate, formattedKey,
-                filterClause,
-                sortColumn, sortDirection,
-                offset, size
-            );
+                """, startDate, endDate, formattedKey,
+                whereClause, sortColumn, sortDirection, offset, size);
 
             List<Map<String, Object>> data = postgresService.query(dataQuery);
             List<Map<String, Object>> topProducts = new ArrayList<>();
@@ -144,7 +140,6 @@ public class TopSellingProductsController {
         }
     }
 
-    // 🔹 Helper Method: Convert Object to Integer
     private int parseInteger(Object obj) {
         if (obj == null) return 0;
         if (obj instanceof Number) return ((Number) obj).intValue();
@@ -155,7 +150,6 @@ public class TopSellingProductsController {
         }
     }
 
-    // 🔹 Helper Method: Convert Object to Double
     private double parseDouble(Object obj) {
         if (obj == null) return 0.0;
         if (obj instanceof Number) return ((Number) obj).doubleValue();
