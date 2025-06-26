@@ -97,7 +97,7 @@ public class SalesByRegionController {
             String sortOrder = allParams.getOrDefault("sortOrder", "desc").equalsIgnoreCase("desc") ? "DESC" : "ASC";
 
             // Only allow specific fields to prevent SQL injection
-            List<String> allowedFields = List.of("state_name", "state_revenue");
+            List<String> allowedFields = List.of("state_name", "state_revenue", "state_quantity", "revenue_percentage");
             String sortColumn = allowedFields.contains(sortField) ? sortField : "state_revenue";
 
             // 🔧 Filtering on state_name (with match modes)
