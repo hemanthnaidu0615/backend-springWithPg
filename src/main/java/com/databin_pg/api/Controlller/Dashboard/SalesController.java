@@ -1,7 +1,6 @@
 package com.databin_pg.api.Controlller.Dashboard;
 
 import com.databin_pg.api.Service.PostgresService;
-
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
@@ -13,9 +12,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+
 @RestController
 @RequestMapping("/api/sales")
 @CrossOrigin(origins = "*")
+@Tag(name = "Dashboard - Sales Metrics", description = "APIs for general sales performance metrics and statewise customer revenue")
 public class SalesController {
 
     @Autowired
@@ -75,11 +82,24 @@ public class SalesController {
     	    Map.entry("DC", "District of Columbia")
     	);
 
+    @Operation(
+            summary = "Get Sales Metrics",
+            description = "Returns average order value, number of high spenders, new customers, and returning customers in a given date range."
+        )
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved sales metrics"),
+            @ApiResponse(responseCode = "500", description = "Failed to fetch sales metrics")
+        })
     @GetMapping("/metrics")
     public ResponseEntity<?> getSalesMetrics(
-            @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
+    		 @Parameter(description = "Start date in YYYY-MM-DD format", required = true)
+             @RequestParam(name = "startDate") String startDate,
+
+             @Parameter(description = "End date in YYYY-MM-DD format", required = true)
+             @RequestParam(name = "endDate") String endDate,
+
+             @Parameter(description = "Optional enterprise key for filtering results 'AWW' or 'AWD'")
+             @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {
         try {
         	String query = String.format("""
         		    SELECT * FROM get_sales_metrics('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
@@ -110,11 +130,24 @@ public class SalesController {
         }
     }
     
+    @Operation(
+            summary = "Get Statewise Revenue Metrics",
+            description = "Returns revenue and customer distribution across U.S. states for a specified date range and enterprise key."
+        )
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved map metrics"),
+            @ApiResponse(responseCode = "500", description = "Failed to fetch map metrics")
+        })
     @GetMapping("/map-metrics")
     public ResponseEntity<?> getMapMetrics(
-            @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {
+    		 @Parameter(description = "Start date in YYYY-MM-DD format", required = true)
+             @RequestParam(name = "startDate") String startDate,
+
+             @Parameter(description = "End date in YYYY-MM-DD format", required = true)
+             @RequestParam(name = "endDate") String endDate,
+
+             @Parameter(description = "Optional enterprise key for filtering results 'AWW' or 'AWD'")
+             @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {
         try {
         	String query = String.format("""
         		    SELECT * FROM get_statewise_customers_revenue('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
@@ -137,8 +170,6 @@ public class SalesController {
         }
     }
 
-
-    // ✅ Helper: Convert Object to Double Safely
     private double parseDouble(Object obj) {
         if (obj instanceof Number) return ((Number) obj).doubleValue();
         try {
@@ -158,7 +189,7 @@ public class SalesController {
             }
         }
     }
-    // ✅ Helper: Convert Object to Integer Safely
+
     private int parseInteger(Object obj) {
         if (obj instanceof Number) return ((Number) obj).intValue();
         try {

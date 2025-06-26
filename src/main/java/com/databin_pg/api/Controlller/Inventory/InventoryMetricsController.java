@@ -8,19 +8,33 @@ import org.springframework.http.HttpStatus;
 
 import java.util.*;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api/inventory")
 @CrossOrigin(origins = "*")
+@Tag(name = "Inventory - Metrics", description = "APIs for inventory turnover and low stock alert metrics")
 public class InventoryMetricsController {
 
     @Autowired
     private PostgresService postgresService;
 
+    @Operation(
+        summary = "Get inventory turnover and low stock alerts",
+        description = "Fetches inventory turnover rates over time and generates alerts for low stock products below a specified threshold"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved turnover rates and low stock alerts"),
+        @ApiResponse(responseCode = "500", description = "Internal server error occurred while fetching inventory metrics")
+    })
     @GetMapping("/turnover-and-alerts")
     public ResponseEntity<?> getInventoryTurnoverAndLowStock(
             @RequestParam(name = "startDate") String startDate,
             @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "threshold", defaultValue = "10") int threshold) {  // No enterpriseKey needed
+            @RequestParam(name = "threshold", defaultValue = "10") int threshold) {
 
         try {
             String turnoverQuery = String.format("""

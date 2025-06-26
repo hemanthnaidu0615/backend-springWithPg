@@ -13,10 +13,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.databin_pg.api.Service.PostgresService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 @RestController
 @RequestMapping("/api/fulfillment")
 @CrossOrigin(origins = "*")
+@Tag(name = "Fulfillment - KPI", description = "KPI data for fulfillment performance such as pipeline orders, average fulfillment time, and on-time delivery rate")
 public class FulfillmentKPIController {
 
     @Autowired
@@ -25,8 +32,13 @@ public class FulfillmentKPIController {
     // 📌 API: Get Fulfillment Dashboard KPI (Orders in Pipeline, Avg Fulfillment Time, On-Time Rate, Top Channel)
     @GetMapping("/kpi")
     public ResponseEntity<?> getFulfillmentDashboardData(
+    		@Parameter(description = "Start date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "startDate") String startDate,
+
+            @Parameter(description = "End date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "endDate") String endDate,
+
+            @Parameter(description = "Optional enterprise key for filtering results 'AWW' or 'AWD'")
             @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {
         try {
             String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";

@@ -7,32 +7,107 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
 import java.util.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/top-sellers")
 @CrossOrigin(origins = "*")
+@Tag(name = "Dashboard - Top Selling Products", description = "APIs for retrieving top selling products by quantity")
 public class TopSellingProductsController {
 
     @Autowired
     private PostgresService postgresService;
 
-    // ✅ API: Get Top 5 Selling Products using PostgreSQL stored procedure
     @GetMapping("/top-products")
-    public ResponseEntity<?> getTopSellingProducts(
-            @RequestParam(name = "startDate") String startDate,
-            @RequestParam(name = "endDate") String endDate,
-            @RequestParam(name = "enterpriseKey", required=false) String enterpriseKey) {  // Accept enterpriseKey as a parameter
-
+    @Operation(
+        summary = "Get top selling products with pagination, sorting, and filtering",
+        description = "Retrieves the top selling products within a date range. Supports filtering by fields using match modes, sorting, and pagination."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Top selling products fetched successfully"),
+        @ApiResponse(responseCode = "500", description = "Failed to fetch top selling products")
+    })
+    public ResponseEntity<?> getTopSellingProducts(@RequestParam Map<String, String> allParams) {
         try {
-            // Include enterpriseKey in the query
-        	String query = String.format(
-        		    "SELECT * FROM get_top_selling_products(TIMESTAMP '%s', TIMESTAMP '%s', %s)", 
-        		    startDate, endDate,
-        		    enterpriseKey == null ? "NULL" : String.format("'%s'", enterpriseKey)
-        		);
+            // Required date parameters
+            String startDate = allParams.get("startDate");
+            String endDate = allParams.get("endDate");
 
+            if (startDate == null || endDate == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Missing startDate or endDate"));
+            }
 
-            List<Map<String, Object>> data = postgresService.query(query);
+            // Optional filters
+            String enterpriseKey = allParams.get("enterpriseKey");
+            String formattedKey = enterpriseKey == null ? "NULL" : "'" + enterpriseKey.replace("'", "''") + "'";
+
+            // Pagination and sorting
+            int page = Integer.parseInt(allParams.getOrDefault("page", "0"));
+            int size = Integer.parseInt(allParams.getOrDefault("size", "10"));
+            int offset = page * size;
+
+            String sortField = allParams.getOrDefault("sortField", "quantity");
+            String sortOrder = allParams.getOrDefault("sortOrder", "desc");
+
+            Map<String, String> allowedSortFields = Map.of(
+                "product_name", "product_name",
+                "quantity", "total_quantity",
+                "percentage", "percentage",
+                "price", "price",
+                "description", "description"
+            );
+            String sortColumn = allowedSortFields.getOrDefault(sortField, "total_quantity");
+            String sortDirection = sortOrder.equalsIgnoreCase("asc") ? "ASC" : "DESC";
+
+            // Filterable fields
+            List<String> allowedFields = List.of("product_name", "description");
+
+            // Build WHERE clause dynamically
+            StringBuilder whereClause = new StringBuilder("WHERE 1=1");
+            for (String field : allowedFields) {
+                String value = allParams.get(field + ".value");
+                String matchMode = allParams.getOrDefault(field + ".matchMode", "contains");
+
+                if (value != null && !value.trim().isEmpty()) {
+                    value = value.toLowerCase().replace("'", "''");
+                    String condition;
+                    switch (matchMode) {
+                        case "startsWith" -> condition = "LOWER(%s::text) LIKE '%s%%'".formatted(field, value);
+                        case "endsWith" -> condition = "LOWER(%s::text) LIKE '%%%s'".formatted(field, value);
+                        case "notContains" -> condition = "LOWER(%s::text) NOT LIKE '%%%s%%'".formatted(field, value);
+                        case "equals" -> condition = "LOWER(%s::text) = '%s'".formatted(field, value);
+                        default -> condition = "LOWER(%s::text) LIKE '%%%s%%'".formatted(field, value);
+                    }
+                    whereClause.append(" AND ").append(condition);
+                }
+            }
+
+            // Count query
+            String countQuery = String.format("""
+                SELECT COUNT(*) AS total FROM (
+                    SELECT * FROM get_top_selling_products('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
+                ) AS result
+                %s
+                """, startDate, endDate, formattedKey, whereClause);
+
+            int totalCount = ((Number) postgresService.query(countQuery).get(0).get("total")).intValue();
+
+            // Data query
+            String dataQuery = String.format("""
+                SELECT * FROM (
+                    SELECT * FROM get_top_selling_products('%s'::TIMESTAMP, '%s'::TIMESTAMP, %s)
+                ) AS result
+                %s
+                ORDER BY %s %s
+                OFFSET %d LIMIT %d
+                """, startDate, endDate, formattedKey,
+                whereClause, sortColumn, sortDirection, offset, size);
+
+            List<Map<String, Object>> data = postgresService.query(dataQuery);
             List<Map<String, Object>> topProducts = new ArrayList<>();
 
             for (Map<String, Object> row : data) {
@@ -51,15 +126,20 @@ public class TopSellingProductsController {
                 ));
             }
 
-            return ResponseEntity.ok(Map.of("top_products", topProducts));
+            return ResponseEntity.ok(Map.of(
+                "data", topProducts,
+                "page", page,
+                "size", size,
+                "count", totalCount
+            ));
 
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to fetch top selling products"));
+                .body(Map.of("error", "Failed to fetch top selling products", "details", e.getMessage()));
         }
     }
 
-    // 🔹 Helper Method: Convert Object to Integer
     private int parseInteger(Object obj) {
         if (obj == null) return 0;
         if (obj instanceof Number) return ((Number) obj).intValue();
@@ -70,7 +150,6 @@ public class TopSellingProductsController {
         }
     }
 
-    // 🔹 Helper Method: Convert Object to Double
     private double parseDouble(Object obj) {
         if (obj == null) return 0.0;
         if (obj instanceof Number) return ((Number) obj).doubleValue();

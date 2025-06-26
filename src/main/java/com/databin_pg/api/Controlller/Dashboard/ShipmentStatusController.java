@@ -7,19 +7,39 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
 import java.util.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 @RestController
 @RequestMapping("/api/shipment-status")
 @CrossOrigin(origins = "*")
+@Tag(name = "Dashboard - Shipment Status", description = "API to retrieve counts of shipment statuses like Shipped, Cancelled, and Returned")
 public class ShipmentStatusController {
 
     @Autowired
     private PostgresService postgresService;
 
+    @Operation(
+            summary = "Get shipment status counts",
+            description = "Retrieves the total number of orders in different shipment statuses (Shipped, Cancelled, Returned) and shipped percentage over a date range."
+        )
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Shipment status counts fetched successfully"),
+            @ApiResponse(responseCode = "500", description = "Failed to fetch shipment status counts")
+        })
     @GetMapping("/count")
     public ResponseEntity<?> getOrderStatusCount(
+    		@Parameter(description = "Start date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "startDate") String startDate,
+
+            @Parameter(description = "End date in YYYY-MM-DD format", required = true)
             @RequestParam(name = "endDate") String endDate,
+
+            @Parameter(description = "Optional enterprise key for filtering results 'AWW' or 'AWD'")
             @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {
         try {
             String query = String.format("""
