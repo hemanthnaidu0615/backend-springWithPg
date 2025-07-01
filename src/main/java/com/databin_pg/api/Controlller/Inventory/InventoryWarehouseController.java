@@ -57,4 +57,28 @@ public class InventoryWarehouseController {
                     .body(Map.of("error", "Failed to fetch region-wise inventory distribution"));
         }
     }
+    @GetMapping("/details-grid")
+    public ResponseEntity<?> getInventoryDetailsGrid(
+            @RequestParam(name = "startDate") String startDate,
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "warehouseId", required = false) Integer warehouseId) {
+
+        try {
+            if (startDate == null || endDate == null || startDate.isEmpty() || endDate.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Start date and end date are required."));
+            }
+
+            String query = String.format("""
+                SELECT * FROM get_inventory_details('%s'::timestamp, '%s'::timestamp, %s)
+            """, startDate, endDate, warehouseId == null ? "NULL" : warehouseId.toString());
+
+            List<Map<String, Object>> result = postgresService.query(query);
+            return ResponseEntity.ok(result);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to fetch inventory details"));
+        }
+    }
 }
