@@ -75,7 +75,6 @@ public class InventoryWarehouseController {
 
             int offset = page * size;
 
-            // Allowlist of valid sortable fields
             Map<String, String> allowedSortFields = Map.of(
                     "inventory_id", "inventory_id",
                     "product_id", "product_id",
@@ -84,7 +83,6 @@ public class InventoryWarehouseController {
                     "reserved_quantity", "reserved_quantity"
             );
 
-            // Allowlist of searchable fields
             List<String> filterableFields = List.of(
                     "inventory_id", "product_id", "region", "reserved_quantity", "stock_quantity"
             );
@@ -92,7 +90,6 @@ public class InventoryWarehouseController {
             String sortColumn = allowedSortFields.getOrDefault(sortField, "inventory_id");
             String sortDirection = sortOrder.equalsIgnoreCase("desc") ? "DESC" : "ASC";
 
-            // WHERE clause with filtering
             StringBuilder whereClause = new StringBuilder("WHERE 1=1");
             for (String field : filterableFields) {
                 String value = allParams.get(field + ".value");
@@ -112,18 +109,15 @@ public class InventoryWarehouseController {
                 }
             }
 
-            // Base query (calls the PostgreSQL function)
             String baseQuery = String.format("""
                 SELECT * FROM get_inventory_details('%s'::timestamp, '%s'::timestamp, %s)
             """, startDate, endDate, warehouseId == null ? "NULL" : warehouseId.toString());
 
-            // Count query
             String countQuery = String.format("SELECT COUNT(*) AS total FROM (%s) AS result %s",
                     baseQuery, whereClause);
 
             int totalCount = ((Number) postgresService.query(countQuery).get(0).get("total")).intValue();
 
-            // Final paginated query
             String dataQuery = String.format("""
                 SELECT * FROM (%s) AS result
                 %s
