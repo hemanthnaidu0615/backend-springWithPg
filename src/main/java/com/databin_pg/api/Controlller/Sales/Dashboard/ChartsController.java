@@ -20,7 +20,6 @@ public class ChartsController {
 
     private static final DateTimeFormatter INPUT_DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
-    // Existing endpoints...
     @GetMapping("/aww")
     public ResponseEntity<?> getOrderAmountByChannelAww(
             @RequestParam(name = "startDate") String startDate,
@@ -35,20 +34,20 @@ public class ChartsController {
         return callStoredProcedure("get_order_amount_by_fulfilment_channel_awd", startDate, endDate);
     }
 
-    // New detailed grid endpoints for AWD and AWW with pagination, filtering, sorting, searching
     @GetMapping("/details-grid/aww")
     public ResponseEntity<?> getDetailsGridAww(
             @RequestParam String startDate,
             @RequestParam String endDate,
             @RequestParam(required = false) String fulfilmentChannel,
             @RequestParam(required = false) String enterpriseKey,
-            @RequestParam(defaultValue = "0") int page,            // 0-based page number
+            @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "order_date") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDir,
-            @RequestParam(required = false) String search          // text search on fulfillment_channel or enterprise_key
+            @RequestParam(defaultValue = "order_date") String sortField,
+            @RequestParam(defaultValue = "desc") String sortOrder,
+            @RequestParam(required = false) String search,
+            @RequestParam Map<String, String> allParams
     ) {
-        return getDetailsGrid(startDate, endDate, "AWW", fulfilmentChannel, enterpriseKey, page, size, sortBy, sortDir, search);
+        return getDetailsGrid(startDate, endDate, "AWW", fulfilmentChannel, enterpriseKey, page, size, sortField, sortOrder, search, allParams);
     }
 
     @GetMapping("/details-grid/awd")
@@ -59,11 +58,12 @@ public class ChartsController {
             @RequestParam(required = false) String enterpriseKey,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "order_date") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDir,
-            @RequestParam(required = false) String search
+            @RequestParam(defaultValue = "order_date") String sortField,
+            @RequestParam(defaultValue = "desc") String sortOrder,
+            @RequestParam(required = false) String search,
+            @RequestParam Map<String, String> allParams
     ) {
-        return getDetailsGrid(startDate, endDate, "AWD", fulfilmentChannel, enterpriseKey, page, size, sortBy, sortDir, search);
+        return getDetailsGrid(startDate, endDate, "AWD", fulfilmentChannel, enterpriseKey, page, size, sortField, sortOrder, search, allParams);
     }
 
     private ResponseEntity<?> getDetailsGrid(
@@ -74,19 +74,37 @@ public class ChartsController {
             String enterpriseKeyParam,
             int page,
             int size,
-            String sortBy,
-            String sortDir,
-            String search
+            String sortField,
+            String sortOrder,
+            String search,
+            Map<String, String> allParams
     ) {
         try {
-            // Parse dates
             LocalDate startDate = LocalDate.parse(startDateStr.substring(0, 10), INPUT_DATE_FORMAT);
             LocalDate endDate = LocalDate.parse(endDateStr.substring(0, 10), INPUT_DATE_FORMAT);
+            sortOrder = sortOrder.equalsIgnoreCase("asc") ? "asc" : "desc";
 
-            // Validate sort direction
-            sortDir = sortDir.equalsIgnoreCase("ASC") ? "ASC" : "DESC";
+            // Allowed sort fields
+            Map<String, String> allowedSort = Map.of(
+                "order_date", "o.order_date",
+                "fulfilment_channel", "ofe.fulfilment_channel",
+                "enterprise_key", "o.enterprise_key",
+                "quantity", "o.quantity",
+                "unit_price", "o.unit_price",
+                "subtotal", "o.subtotal",
+                "shipping_fee", "o.shipping_fee",
+                "tax_amount", "o.tax_amount",
+                "discount_amount", "o.discount_amount",
+                "total_amount", "o.total_amount"
+            );
+            String sortCol = allowedSort.getOrDefault(sortField, "o.order_date");
 
-            // Build base SQL query with joins
+            // Filterable fields
+            List<String> filterFields = List.of(
+                "order_date", "fulfilment_channel", "enterprise_key", "quantity", "unit_price",
+                "subtotal", "shipping_fee", "tax_amount", "discount_amount", "total_amount"
+            );
+
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("SELECT ")
                     .append("o.order_date, ")
@@ -102,38 +120,59 @@ public class ChartsController {
                     .append("FROM orders o ")
                     .append("JOIN order_fulfillment_event ofe ON o.order_id = ofe.order_id ")
                     .append("WHERE o.order_date::DATE BETWEEN '").append(startDate).append("' AND '").append(endDate).append("' ")
-                    // enterpriseKey fixed filter for AWW/AWD
                     .append("AND o.enterprise_key = '").append(enterpriseKeyFilter).append("' ");
 
-            // Optional enterpriseKey param filter (overrides enterpriseKeyFilter if provided)
             if (enterpriseKeyParam != null && !enterpriseKeyParam.isBlank()) {
                 sqlBuilder.append("AND o.enterprise_key = '").append(enterpriseKeyParam).append("' ");
             }
 
-            // Optional fulfilmentChannel filter
             if (fulfilmentChannel != null && !fulfilmentChannel.isBlank()) {
                 sqlBuilder.append("AND ofe.fulfilment_channel = '").append(fulfilmentChannel).append("' ");
             }
 
-            // Optional search on fulfillment_channel or enterprise_key
             if (search != null && !search.isBlank()) {
                 String searchLower = search.toLowerCase();
                 sqlBuilder.append("AND (LOWER(ofe.fulfilment_channel) LIKE '%").append(searchLower).append("%' ")
                         .append("OR LOWER(o.enterprise_key) LIKE '%").append(searchLower).append("%') ");
             }
 
-            // Count total records for pagination metadata
-            String countSql = "SELECT COUNT(*) FROM (" + sqlBuilder.toString() + ") AS count_query";
+            // Apply matchMode + value filters
+            for (String field : filterFields) {
+                String val = allParams.get(field + ".value");
+                String mode = allParams.getOrDefault(field + ".matchMode", "contains");
 
-            List<Map<String, Object>> countResult = postgresService.query(countSql);
-            int total = 0;
-            if (!countResult.isEmpty()) {
-                total = ((Number) countResult.get(0).get("count")).intValue();
+                if (val != null && !val.isEmpty()) {
+                    String safeVal = val.toLowerCase().replace("'", "''");
+                    String condition;
+                    String column = (field.equals("fulfilment_channel") ? "ofe." : "o.") + field;
+
+                    switch (mode) {
+                        case "startsWith":
+                            condition = "LOWER(" + column + "::text) LIKE '" + safeVal + "%'";
+                            break;
+                        case "endsWith":
+                            condition = "LOWER(" + column + "::text) LIKE '%" + safeVal + "'";
+                            break;
+                        case "notContains":
+                            condition = "LOWER(" + column + "::text) NOT LIKE '%" + safeVal + "%'";
+                            break;
+                        case "equals":
+                            condition = "LOWER(" + column + "::text) = '" + safeVal + "'";
+                            break;
+                        default:
+                            condition = "LOWER(" + column + "::text) LIKE '%" + safeVal + "%'";
+                    }
+                    sqlBuilder.append(" AND ").append(condition);
+                }
             }
 
-            // Add ORDER BY and LIMIT OFFSET for pagination
-            sqlBuilder.append("ORDER BY ").append(sortBy).append(" ").append(sortDir).append(" ");
-            sqlBuilder.append("LIMIT ").append(size).append(" OFFSET ").append(page * size);
+            // Count query
+            String countSql = "SELECT COUNT(*) FROM (" + sqlBuilder + ") AS count_query";
+            int total = ((Number) postgresService.query(countSql).get(0).get("count")).intValue();
+
+            // Final query with pagination
+            sqlBuilder.append(" ORDER BY ").append(sortCol).append(" ").append(sortOrder);
+            sqlBuilder.append(" LIMIT ").append(size).append(" OFFSET ").append(page * size);
 
             List<Map<String, Object>> result = postgresService.query(sqlBuilder.toString());
 
@@ -142,17 +181,13 @@ public class ChartsController {
                         .body(Map.of("message", "No order details found."));
             }
 
-            // Return paged response with metadata
-            Map<String, Object> response = new HashMap<>();
-            response.put("startDate", startDate);
-            response.put("endDate", endDate);
-            response.put("page", page);
-            response.put("size", size);
-            response.put( "count", total);
-            response.put("totalPages", (int) Math.ceil((double) total / size));
-            response.put("data", result);
-
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(Map.of(
+                "page", page,
+                "size", size,
+                "count", total,
+                "totalPages", (int) Math.ceil((double) total / size),
+                "data", result
+            ));
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -161,15 +196,14 @@ public class ChartsController {
         }
     }
 
-    // Your existing callStoredProcedure method unchanged
     private ResponseEntity<?> callStoredProcedure(String procName, String startDate, String endDate) {
         try {
             LocalDate start = LocalDate.parse(startDate.substring(0, 10), INPUT_DATE_FORMAT);
             LocalDate end = LocalDate.parse(endDate.substring(0, 10), INPUT_DATE_FORMAT);
 
             String query = String.format(
-                "SELECT * FROM %s('%s'::timestamp, '%s'::timestamp)",
-                procName, start, end);
+                    "SELECT * FROM %s('%s'::timestamp, '%s'::timestamp)",
+                    procName, start, end);
 
             List<Map<String, Object>> result = postgresService.query(query);
 
@@ -179,9 +213,9 @@ public class ChartsController {
             }
 
             return ResponseEntity.ok(Map.of(
-                "startDate", start,
-                "endDate", end,
-                "data", result
+                    "startDate", start,
+                    "endDate", end,
+                    "data", result
             ));
 
         } catch (Exception e) {
