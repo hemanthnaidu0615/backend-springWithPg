@@ -45,7 +45,6 @@ public class SalesByAnalysisTopProductsController {
             String formattedEnterpriseKey = (enterpriseKey == null || enterpriseKey.isBlank())
                     ? "NULL" : "'" + enterpriseKey.replace("'", "''") + "'";
 
-            // Allowed fields
             List<String> allowedFields = List.of("product_name", "units_sold", "total_sales");
 
             StringBuilder whereClause = new StringBuilder("WHERE 1=1");

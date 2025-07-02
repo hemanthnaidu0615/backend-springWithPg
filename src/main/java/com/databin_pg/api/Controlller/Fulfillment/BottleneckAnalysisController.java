@@ -45,14 +45,11 @@ public class BottleneckAnalysisController {
             @RequestParam(name = "enterpriseKey", required = false) String enterpriseKey) {
 
         try {
-            // Correctly format the enterpriseKey, if not provided, use NULL
             String formattedKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
 
-            // Ensure start and end date are in the correct format (YYYY-MM-DD)
-            String formattedStartDate = startDate.split("T")[0];  // Only take the date part
-            String formattedEndDate = endDate.split("T")[0];      // Only take the date part
+            String formattedStartDate = startDate.split("T")[0];  
+            String formattedEndDate = endDate.split("T")[0];     
 
-            // The query that will call the stored procedure
             String query = String.format("""
                 SELECT * FROM get_bottleneck_analysis('%s', '%s', %s)
             """, formattedStartDate, formattedEndDate, formattedKey);
@@ -93,7 +90,6 @@ public class BottleneckAnalysisController {
 
             int offset = page * size;
 
-            // Define allowed sort fields to prevent SQL injection
             Map<String, String> allowedSort = Map.of(
                 "order_id", "order_id",
                 "event_id", "event_id",
@@ -104,7 +100,6 @@ public class BottleneckAnalysisController {
                 "fulfillment_city", "fulfillment_city"
             );
 
-            // Define filterable fields
             List<String> filterFields = List.of(
                 "order_id", "event_id", "order_date",
                 "enterprise_key", "event_type",
@@ -114,7 +109,6 @@ public class BottleneckAnalysisController {
             String sortCol = allowedSort.getOrDefault(sortField, "order_date");
             String sortDir = sortOrder.equalsIgnoreCase("desc") ? "DESC" : "ASC";
 
-            // Apply filters using match modes
             StringBuilder where = new StringBuilder("WHERE 1=1");
             for (String field : filterFields) {
                 String val = allParams.get(field + ".value");
@@ -134,7 +128,6 @@ public class BottleneckAnalysisController {
                 }
             }
 
-            // Count query
             String countQuery = String.format("""
                 SELECT COUNT(*) AS total FROM (%s) AS sub %s
             """, baseQuery, where);
@@ -142,7 +135,6 @@ public class BottleneckAnalysisController {
             int total = ((Number) postgresService.query(countQuery)
                     .get(0).get("total")).intValue();
 
-            // Final paginated query
             String dataQuery = String.format("""
                 SELECT * FROM (%s) AS sub
                 %s

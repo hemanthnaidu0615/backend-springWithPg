@@ -28,12 +28,10 @@ public class SalesByAnalysisSalesTrendsController {
             @RequestParam(name = "fulfillmentChannel", required = false) String fulfillmentChannel
     ) {
         try {
-            // Parse dates
             LocalDate start = LocalDate.parse(startDate);
             LocalDate end = LocalDate.parse(endDate);
             long daysBetween = ChronoUnit.DAYS.between(start, end);
 
-            // Determine aggregation level
             String aggregationLevel;
             if (daysBetween < 7) {
                 aggregationLevel = "day";
@@ -45,17 +43,13 @@ public class SalesByAnalysisSalesTrendsController {
                 aggregationLevel = "year";
             }
 
-
-            // Format parameters
             String formattedEnterpriseKey = (enterpriseKey == null || enterpriseKey.isBlank()) ? "NULL" : "'" + enterpriseKey + "'";
             String formattedFulfillmentChannel = (fulfillmentChannel == null || fulfillmentChannel.isBlank()) ? "NULL" : "'" + fulfillmentChannel + "'";
 
-            // Build SQL query
             String query = String.format("""
                 SELECT * FROM get_sales_by_date('%s'::timestamp, '%s'::timestamp, %s, %s, '%s')
             """, startDate, endDate, formattedEnterpriseKey, formattedFulfillmentChannel, aggregationLevel);
 
-            // Execute
             List<Map<String, Object>> result = postgresService.query(query);
 
             if (result.isEmpty()) {
@@ -63,7 +57,6 @@ public class SalesByAnalysisSalesTrendsController {
                         .body(Map.of("message", "No sales data found for the given period."));
             }
 
-            // Transform
             List<Map<String, Object>> salesData = new ArrayList<>();
             for (Map<String, Object> row : result) {
                 salesData.add(Map.of(
@@ -106,7 +99,7 @@ public class SalesByAnalysisSalesTrendsController {
             );
 
             if (!allowedFields.contains(sortField)) {
-                sortField = "order_id";  // fallback to safe default
+                sortField = "order_id";  
             }
 
             String sortDirection = sortOrder.equalsIgnoreCase("desc") ? "DESC" : "ASC";
@@ -142,7 +135,6 @@ public class SalesByAnalysisSalesTrendsController {
                 }
             }
 
-            // Add static filters
             if (!formattedEnterpriseKey.equals("NULL")) {
                 whereClause.append(" AND sub.enterprise_key = ").append(formattedEnterpriseKey);
             }
