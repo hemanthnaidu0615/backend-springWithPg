@@ -141,4 +141,96 @@ public class SalesByAnalysisTopCustomersController {
                     .body(Map.of("error", "Failed to fetch customer order summary", "details", e.getMessage()));
         }
     }
+    @GetMapping("/details-customers-grid")
+    public ResponseEntity<?> getDetailedCustomersGrid(
+            @RequestParam String startDate,
+            @RequestParam String endDate,
+            @RequestParam(required = false) String enterpriseKey,
+            @RequestParam(required = false) String firstName,
+            @RequestParam(required = false) String lastName,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam Map<String, String> allParams
+    ) {
+        try {
+            int offset = page * size;
+
+            String formattedEnterpriseKey = (enterpriseKey == null || enterpriseKey.isBlank())
+                    ? "NULL" : "'" + enterpriseKey.replace("'", "''") + "'";
+            String formattedStartDate = startDate.split("T")[0];
+            String formattedEndDate = endDate.split("T")[0];
+
+            List<String> allowedFields = List.of("first_name", "last_name", "email", "total_spent");
+
+            StringBuilder whereClause = new StringBuilder("WHERE 1=1");
+            if (firstName != null && !firstName.isBlank()) {
+                whereClause.append(" AND LOWER(first_name) LIKE LOWER('%").append(firstName.replace("'", "''")).append("%')");
+            }
+            if (lastName != null && !lastName.isBlank()) {
+                whereClause.append(" AND LOWER(last_name) LIKE LOWER('%").append(lastName.replace("'", "''")).append("%')");
+            }
+
+            for (String field : allowedFields) {
+                String value = allParams.get(field + ".value");
+                String matchMode = allParams.getOrDefault(field + ".matchMode", "contains");
+
+                if (value != null && !value.isBlank()) {
+                    value = value.toLowerCase().replace("'", "''");
+                    String columnRef = "data." + field;
+                    String condition = switch (matchMode) {
+                        case "startsWith" -> "%s::text LIKE '%s%%'".formatted(columnRef, value);
+                        case "endsWith" -> "%s::text LIKE '%%%s'".formatted(columnRef, value);
+                        case "notContains" -> "LOWER(%s::text) NOT LIKE '%%%s%%'".formatted(columnRef, value);
+                        case "equals" -> "LOWER(%s::text) = '%s'".formatted(columnRef, value);
+                        case "greaterThan" -> "total_spent > " + value;
+                        case "lessThan" -> "total_spent < " + value;
+                        default -> "LOWER(%s::text) LIKE '%%%s%%'".formatted(columnRef, value);
+                    };
+                    whereClause.append(" AND ").append(condition);
+                }
+            }
+
+            String sortField = allParams.getOrDefault("sortField", "total_spent");
+            String sortOrder = allParams.getOrDefault("sortOrder", "desc").equalsIgnoreCase("desc") ? "DESC" : "ASC";
+            String sortColumn = allowedFields.contains(sortField) ? "data." + sortField : "data.total_spent";
+
+            String baseQuery = String.format("""
+                SELECT * FROM get_top_customers_grid('%s', '%s', %s)
+            """, formattedStartDate, formattedEndDate, formattedEnterpriseKey);
+
+            String dataQuery = String.format("""
+                SELECT * FROM (
+                    %s
+                ) AS data
+                %s
+                ORDER BY %s %s
+                OFFSET %d LIMIT %d
+            """, baseQuery, whereClause, sortColumn, sortOrder, offset, size);
+
+            String countQuery = String.format("""
+                SELECT COUNT(*) AS total FROM (
+                    %s
+                ) AS data
+                %s
+            """, baseQuery, whereClause);
+
+            List<Map<String, Object>> result = postgresService.query(dataQuery);
+            List<Map<String, Object>> countResult = postgresService.query(countQuery);
+
+            int totalCount = (!countResult.isEmpty() && countResult.get(0).get("total") != null)
+                    ? ((Number) countResult.get(0).get("total")).intValue()
+                    : 0;
+
+            return ResponseEntity.ok(Map.of(
+                    "customers", result,
+                    "page", page,
+                    "size", size,
+                    "count", totalCount
+            ));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to fetch customer details", "details", e.getMessage()));
+        }
+    }
 }

@@ -45,7 +45,6 @@ public class SalesByAnalysisTopProductsController {
             String formattedEnterpriseKey = (enterpriseKey == null || enterpriseKey.isBlank())
                     ? "NULL" : "'" + enterpriseKey.replace("'", "''") + "'";
 
-            // Allowed fields
             List<String> allowedFields = List.of("product_name", "units_sold", "total_sales");
 
             StringBuilder whereClause = new StringBuilder("WHERE 1=1");
@@ -79,12 +78,10 @@ public class SalesByAnalysisTopProductsController {
             String sortOrder = allParams.getOrDefault("sortOrder", "desc").equalsIgnoreCase("desc") ? "DESC" : "ASC";
             String sortColumn = allowedFields.contains(sortField) ? "data." + sortField : "data.total_sales";
 
-            // Base query
             String baseQuery = String.format("""
                 SELECT * FROM get_product_sales_summary('%s'::timestamp, '%s'::timestamp, %s)
             """, startDate, endDate, formattedEnterpriseKey);
 
-            // Data query with alias and prefixed filters
             String dataQuery = String.format("""
                 SELECT * FROM (
                     %s
@@ -94,7 +91,6 @@ public class SalesByAnalysisTopProductsController {
                 OFFSET %d LIMIT %d
             """, baseQuery, whereClause, sortColumn, sortOrder, offset, size);
 
-            // Count query
             String countQuery = String.format("""
                 SELECT COUNT(*) AS total FROM (
                     %s
@@ -102,7 +98,6 @@ public class SalesByAnalysisTopProductsController {
                 %s
             """, baseQuery, whereClause);
 
-            // Execute queries
             List<Map<String, Object>> result = postgresService.query(dataQuery);
             List<Map<String, Object>> countResult = postgresService.query(countQuery);
 
@@ -131,6 +126,104 @@ public class SalesByAnalysisTopProductsController {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch product sales summary", "details", e.getMessage()));
+        }
+    }
+    @GetMapping("/details-products-grid")
+    public ResponseEntity<?> getDetailedProductGrid(
+            @RequestParam String startDate,
+            @RequestParam String endDate,
+            @RequestParam(required = false) String enterpriseKey,
+            @RequestParam(required = false) String productName,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam Map<String, String> allParams
+    ) {
+        try {
+            int offset = page * size;
+            String formattedEnterpriseKey = (enterpriseKey == null || enterpriseKey.isBlank())
+                    ? "NULL" : "'" + enterpriseKey.replace("'", "''") + "'";
+
+            List<String> allowedFields = List.of(
+                    "product_name", "product_description", "quantity", "unit_price", "total_amount"
+            );
+
+            StringBuilder whereClause = new StringBuilder("WHERE 1=1");
+
+            if (productName != null && !productName.isBlank()) {
+                String formattedProductName = productName.toLowerCase().replace("'", "''");
+                whereClause.append(" AND LOWER(data.product_name) LIKE '%")
+                           .append(formattedProductName)
+                           .append("%'");
+            }
+
+            for (String field : allowedFields) {
+                if (field.equals("product_name")) continue;
+
+                String value = allParams.get(field + ".value");
+                String matchMode = allParams.getOrDefault(field + ".matchMode", "contains");
+
+                if (value != null && !value.isBlank()) {
+                    value = value.toLowerCase().replace("'", "''");
+                    boolean isNumeric = List.of("quantity", "unit_price", "total_amount").contains(field);
+                    String columnRef = "data." + field;
+
+                    String condition = switch (matchMode) {
+                        case "startsWith" -> "%s::text LIKE '%s%%'".formatted(columnRef, value);
+                        case "endsWith" -> "%s::text LIKE '%%%s'".formatted(columnRef, value);
+                        case "notContains" -> "LOWER(%s::text) NOT LIKE '%%%s%%'".formatted(columnRef, value);
+                        case "equals" -> isNumeric
+                                ? "%s = %s".formatted(columnRef, value)
+                                : "LOWER(%s::text) = '%s'".formatted(columnRef, value);
+                        case "greaterThan" -> isNumeric ? "%s > %s".formatted(columnRef, value) : "1=0";
+                        case "lessThan" -> isNumeric ? "%s < %s".formatted(columnRef, value) : "1=0";
+                        default -> "LOWER(%s::text) LIKE '%%%s%%'".formatted(columnRef, value);
+                    };
+
+                    whereClause.append(" AND ").append(condition);
+                }
+            }
+
+            String sortField = allParams.getOrDefault("sortField", "product_name");
+            String sortOrder = allParams.getOrDefault("sortOrder", "asc").equalsIgnoreCase("desc") ? "DESC" : "ASC";
+            String sortColumn = allowedFields.contains(sortField) ? "data." + sortField : "data.product_name";
+
+            String baseQuery = String.format("""
+                SELECT * FROM get_top_products_grid('%s'::timestamp, '%s'::timestamp, %s)
+            """, startDate, endDate, formattedEnterpriseKey);
+
+            String dataQuery = String.format("""
+                SELECT * FROM (
+                    %s
+                ) AS data
+                %s
+                ORDER BY %s %s
+                OFFSET %d LIMIT %d
+            """, baseQuery, whereClause, sortColumn, sortOrder, offset, size);
+
+            String countQuery = String.format("""
+                SELECT COUNT(*) AS total FROM (
+                    %s
+                ) AS data
+                %s
+            """, baseQuery, whereClause);
+
+            List<Map<String, Object>> result = postgresService.query(dataQuery);
+            List<Map<String, Object>> countResult = postgresService.query(countQuery);
+
+            int totalCount = (!countResult.isEmpty() && countResult.get(0).get("total") != null)
+                    ? ((Number) countResult.get(0).get("total")).intValue()
+                    : 0;
+
+            return ResponseEntity.ok(Map.of(
+                    "products", result,
+                    "page", page,
+                    "size", size,
+                    "count", totalCount
+            ));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to fetch product grid", "details", e.getMessage()));
         }
     }
 }

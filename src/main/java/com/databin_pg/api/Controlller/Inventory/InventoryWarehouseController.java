@@ -57,4 +57,88 @@ public class InventoryWarehouseController {
                     .body(Map.of("error", "Failed to fetch region-wise inventory distribution"));
         }
     }
+    @GetMapping("/details-grid")
+    public ResponseEntity<?> getInventoryDetailsGrid(
+            @RequestParam(name = "startDate") String startDate,
+            @RequestParam(name = "endDate") String endDate,
+            @RequestParam(name = "warehouseId", required = false) Integer warehouseId,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size,
+            @RequestParam(name = "sortField", defaultValue = "inventory_id") String sortField,
+            @RequestParam(name = "sortOrder", defaultValue = "asc") String sortOrder,
+            @RequestParam Map<String, String> allParams
+    ) {
+        try {
+            if (startDate == null || endDate == null || startDate.isEmpty() || endDate.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Start date and end date are required."));
+            }
+
+            int offset = page * size;
+
+            Map<String, String> allowedSortFields = Map.of(
+                    "inventory_id", "inventory_id",
+                    "product_id", "product_id",
+                    "region", "region",
+                    "stock_quantity", "stock_quantity",
+                    "reserved_quantity", "reserved_quantity"
+            );
+
+            List<String> filterableFields = List.of(
+                    "inventory_id", "product_id", "region", "reserved_quantity", "stock_quantity"
+            );
+
+            String sortColumn = allowedSortFields.getOrDefault(sortField, "inventory_id");
+            String sortDirection = sortOrder.equalsIgnoreCase("desc") ? "DESC" : "ASC";
+
+            StringBuilder whereClause = new StringBuilder("WHERE 1=1");
+            for (String field : filterableFields) {
+                String value = allParams.get(field + ".value");
+                String matchMode = allParams.getOrDefault(field + ".matchMode", "contains");
+
+                if (value != null && !value.isEmpty()) {
+                    value = value.toLowerCase().replace("'", "''");
+                    String condition;
+                    switch (matchMode) {
+                        case "startsWith" -> condition = "LOWER(" + field + "::text) LIKE '" + value + "%'";
+                        case "endsWith" -> condition = "LOWER(" + field + "::text) LIKE '%" + value + "'";
+                        case "notContains" -> condition = "LOWER(" + field + "::text) NOT LIKE '%" + value + "%'";
+                        case "equals" -> condition = "LOWER(" + field + "::text) = '" + value + "'";
+                        default -> condition = "LOWER(" + field + "::text) LIKE '%" + value + "%'";
+                    }
+                    whereClause.append(" AND ").append(condition);
+                }
+            }
+
+            String baseQuery = String.format("""
+                SELECT * FROM get_inventory_details('%s'::timestamp, '%s'::timestamp, %s)
+            """, startDate, endDate, warehouseId == null ? "NULL" : warehouseId.toString());
+
+            String countQuery = String.format("SELECT COUNT(*) AS total FROM (%s) AS result %s",
+                    baseQuery, whereClause);
+
+            int totalCount = ((Number) postgresService.query(countQuery).get(0).get("total")).intValue();
+
+            String dataQuery = String.format("""
+                SELECT * FROM (%s) AS result
+                %s
+                ORDER BY %s %s
+                OFFSET %d LIMIT %d
+            """, baseQuery, whereClause, sortColumn, sortDirection, offset, size);
+
+            List<Map<String, Object>> result = postgresService.query(dataQuery);
+
+            return ResponseEntity.ok(Map.of(
+                    "data", result,
+                    "page", page,
+                    "size", size,
+                    "count", totalCount
+            ));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to fetch inventory details", "details", e.getMessage()));
+        }
+    }
+
 }

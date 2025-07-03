@@ -65,7 +65,7 @@ public class OrderTrendsByProdCatController {
             String sortDirection = sortOrder.equalsIgnoreCase("desc") ? "DESC" : "ASC";
 
             // Filtering/search
-            List<String> filterableFields = List.of("month", "category");
+            List<String> filterableFields = List.of("month", "category", "sales");
             StringBuilder whereClause = new StringBuilder("WHERE 1=1");
 
             for (String field : filterableFields) {
