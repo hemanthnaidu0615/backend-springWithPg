@@ -120,7 +120,8 @@ public class SalesByAnalysisSalesTrendsController {
                     String columnRef = "sub." + field;
 
                     String condition = switch (matchMode) {
-                        case "startsWith" -> "%s::text LIKE '%s%%'".formatted(columnRef, value);
+                        //case "startsWith" -> "%s::text LIKE '%s%%'".formatted(columnRef, value);
+                        case "startsWith" -> "LOWER(%s::text) LIKE '%s%%'".formatted(columnRef, value);
                         case "endsWith" -> "%s::text LIKE '%%%s'".formatted(columnRef, value);
                         case "notContains" -> "LOWER(%s::text) NOT LIKE '%%%s%%'".formatted(columnRef, value);
                         case "equals" -> isNumeric
