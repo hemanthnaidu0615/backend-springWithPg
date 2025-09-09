@@ -148,6 +148,21 @@ public class SalesByAnalysisTopProductsController {
             );
 
             StringBuilder whereClause = new StringBuilder("WHERE 1=1");
+            
+String prodNameValue = allParams.get("product_name.value");
+String prodNameMatch = allParams.getOrDefault("product_name.matchMode", "contains");
+
+if (prodNameValue != null && !prodNameValue.isBlank()) {
+    String v = prodNameValue.toLowerCase().replace("'", "''");
+    String condition = switch (prodNameMatch) {
+        case "startsWith" -> "LOWER(data.product_name) LIKE '" + v + "%'";
+        case "endsWith" -> "LOWER(data.product_name) LIKE '%" + v + "'";
+        case "notContains" -> "LOWER(data.product_name) NOT LIKE '%" + v + "%'";
+        case "equals" -> "LOWER(data.product_name) = '" + v + "'";
+        default -> "LOWER(data.product_name) LIKE '%" + v + "%'";
+    };
+    whereClause.append(" AND ").append(condition);
+}
 
             if (productName != null && !productName.isBlank()) {
                 String formattedProductName = productName.toLowerCase().replace("'", "''");

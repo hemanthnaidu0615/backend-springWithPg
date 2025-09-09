@@ -120,7 +120,8 @@ public class SalesByAnalysisSalesTrendsController {
                     String columnRef = "sub." + field;
 
                     String condition = switch (matchMode) {
-                        case "startsWith" -> "%s::text LIKE '%s%%'".formatted(columnRef, value);
+                        //case "startsWith" -> "%s::text LIKE '%s%%'".formatted(columnRef, value);
+                        case "startsWith" -> "LOWER(%s::text) LIKE '%s%%'".formatted(columnRef, value);
                         case "endsWith" -> "%s::text LIKE '%%%s'".formatted(columnRef, value);
                         case "notContains" -> "LOWER(%s::text) NOT LIKE '%%%s%%'".formatted(columnRef, value);
                         case "equals" -> isNumeric
@@ -135,9 +136,9 @@ public class SalesByAnalysisSalesTrendsController {
                 }
             }
 
-            if (!formattedEnterpriseKey.equals("NULL")) {
-                whereClause.append(" AND sub.enterprise_key = ").append(formattedEnterpriseKey);
-            }
+            // if (!formattedEnterpriseKey.equals("NULL")) {
+            //     whereClause.append(" AND sub.enterprise_key = ").append(formattedEnterpriseKey);
+            // }
             if (!formattedFulfillmentChannel.equals("NULL")) {
                 whereClause.append(" AND LOWER(sub.fulfillment_channel) = LOWER(").append(formattedFulfillmentChannel).append(")");
             }
@@ -158,6 +159,7 @@ public class SalesByAnalysisSalesTrendsController {
                 %s
             """, baseQuery, whereClause);
 
+            System.out.println( "Count Query: " + countQuery ); // Debugging line
             List<Map<String, Object>> countResult = postgresService.query(countQuery);
             int totalRecords = (!countResult.isEmpty() && countResult.get(0).get("total") != null)
                     ? ((Number) countResult.get(0).get("total")).intValue()
@@ -177,6 +179,7 @@ public class SalesByAnalysisSalesTrendsController {
                 LIMIT %d OFFSET %d
             """, baseQuery, whereClause, sortField, sortDirection, size, offset);
 
+            System.out.println( "Data Query: " + dataQuery ); // Debugging line
             List<Map<String, Object>> data = postgresService.query(dataQuery);
 
             Map<String, Object> response = new LinkedHashMap<>();
